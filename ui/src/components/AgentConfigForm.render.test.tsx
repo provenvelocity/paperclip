@@ -1351,6 +1351,43 @@ describe("AgentConfigForm environment selector", () => {
     } finally { accounts.mockRestore(); }
   });
 
+  it.each([undefined, "auto"])("tests the saved managed direct Copilot binding with model %s", async model => {
+    const binding = { mode: "responsible_user", provider: "github", method: "api_key" } as const;
+    const accountList = vi.spyOn(aiConnectionsApi, "list").mockResolvedValue({
+      currentUserId: "you", canManageConnections: true, connections: [{
+        id: "copilot-account", grantId: "copilot-grant", companyId: "company-1",
+        provider: "github", method: "api_key", name: "My Copilot", ownership: "personal",
+        ownerUserId: "you", isDefault: true, status: "connected",
+      }],
+    });
+    mockAdaptersApi.list.mockResolvedValue([{ type: "copilot_local", supportedRunners: ["legacy"], defaultRunner: "legacy" }]);
+    mockAgentsApi.testEnvironment.mockResolvedValue({
+      adapterType: "copilot_local", status: "pass", testedAt: new Date(0).toISOString(),
+      checks: [{ code: "copilot_hello_probe_passed", level: "info", message: "Copilot hello probe succeeded." }],
+    });
+    try {
+      const result = await renderForm([makeEnvironment({ id: "local-1" })], {
+        adapterType: "copilot_local",
+        defaultEnvironmentId: "local-1",
+        adapterConfig: { cwd: "/workspaces/pilot", ...(model ? { model } : {}) },
+        runtimeConfig: { aiConnection: binding },
+      }, { showAdapterTestEnvironmentButton: true });
+      roots.push(result.root);
+      expect(result.container.textContent).not.toContain("Existing authentication — not managed by Connections");
+      await runTest(result.container);
+      expect(mockAgentsApi.testEnvironment).toHaveBeenCalledTimes(1);
+      expect(mockAgentsApi.testEnvironment).toHaveBeenCalledWith("company-1", "copilot_local", expect.objectContaining({
+        agentId: "agent-1", aiConnection: binding, environmentId: "local-1",
+        adapterConfig: expect.objectContaining({ cwd: "/workspaces/pilot" }),
+      }));
+      expect(mockAgentsApi.testEnvironment.mock.calls[0]?.[2]).not.toHaveProperty("runner");
+      expect(mockAgentsApi.qualifyRunner).not.toHaveBeenCalled();
+      expect(result.container.textContent).toContain("Copilot hello probe succeeded.");
+      expect(result.container.textContent).not.toContain("No Copilot authentication detected.");
+      expect(result.onSave).not.toHaveBeenCalled();
+    } finally { accountList.mockRestore(); }
+  });
+
   it("refreshes Copilot models after reconnecting the same responsible-user account", async () => {
     const binding = { mode: "responsible_user", provider: "github", method: "api_key" } as const;
     const account = { id: "copilot-account", grantId: "copilot-grant", companyId: "company-1", provider: "github", method: "api_key", name: "My Copilot", ownership: "personal", ownerUserId: "you", isDefault: true, status: "needs_attention" } as const;

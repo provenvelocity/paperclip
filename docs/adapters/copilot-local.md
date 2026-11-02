@@ -79,6 +79,15 @@ Runner metadata/model discovery or require a native-only explicit model.
 A skipped or missing hello receipt blocks adoption; authentication failures
 remain actionable. Testing may consume Copilot usage.
 
+If a test instead says **No Copilot authentication detected** after you created
+a managed account, check the agent's **Connection** selector. Creating an
+account does not adopt it for an existing agent: select the saved account or
+responsible user's default, confirm adoption, and save the agent. Do not copy
+the token into environment fields or run another login just to bypass a missing
+binding. An older tab can retain an unsaved configuration and its previous test
+result; preserve any intended edits before discarding that draft and reopening
+the saved agent.
+
 ### Exact fine-grained token permissions
 
 The coding template defaults to the user-approved permission set below.
