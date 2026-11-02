@@ -49,7 +49,11 @@ export function AgentCharacter({ agent, appearance, size = 256, state = "idle", 
     const region = trackingScope === "page" ? target.ownerDocument.documentElement : trackingRegion?.current ?? root.current;
     if (!region || !root.current) return;
     const coarse = matchMedia("(pointer: coarse)");
-    const center = () => { target.style.transform = ""; };
+    const center = () => {
+      target.style.transform = "";
+      target.style.removeProperty("--avatar-eye-x");
+      target.style.removeProperty("--avatar-eye-y");
+    };
     const pointer = (event: PointerEvent) => {
       if (event.pointerType === "touch" || coarse.matches) return;
       const bounds = root.current?.getBoundingClientRect();
@@ -58,6 +62,8 @@ export function AgentCharacter({ agent, appearance, size = 256, state = "idle", 
       const dy = (event.clientY - bounds.top - bounds.height / 2) / Math.max(80, bounds.height / 2);
       const distance = Math.max(1, Math.hypot(dx, dy));
       const x = dx / distance, y = dy / distance;
+      target.style.setProperty("--avatar-eye-x", `${followCursor ? x * 2 : 0}px`);
+      target.style.setProperty("--avatar-eye-y", `${followCursor ? y * 1.5 : 0}px`);
       target.style.transform = `perspective(600px) translate(${followCursor ? x * 4 : 0}%, ${followCursor ? y * 4 : 0}%) rotateX(${followRotation ? -y * 8 : 0}deg) rotateY(${followRotation ? x * 10 : 0}deg)`;
     };
     const sync = () => {
@@ -102,7 +108,7 @@ export function AgentCharacter({ agent, appearance, size = 256, state = "idle", 
   return <span ref={root} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}
     className={cn("relative inline-block shrink-0", avatarSizeClasses[size], className)}>
     <span ref={customTracking} className={cn("inline-block size-full", customMotion && "agent-avatar-tracking")}>
-      <AgentAvatar agent={agent} appearance={identity} size={size < 256 ? 256 : size} name={name} pose={state} muted={muted}
+      <AgentAvatar agent={agent} appearance={identity} size={size < 256 ? 256 : size} name={name} pose={state} muted={muted} eyeLayers
         className={cn("size-full", ready && !identity.customAvatarAssetId && "invisible",
           customMotion && active && owner === slotId.current && `agent-avatar-motion agent-avatar-motion-${state}`)} />
     </span>

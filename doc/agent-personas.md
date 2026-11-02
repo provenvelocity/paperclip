@@ -76,7 +76,7 @@ disables it, and an omitted setting keeps existing behavior unchanged.
 
 The large `AgentCharacter` surface gently floats idle artwork, tilts while
 thinking/confused, and bobs while working/loading/successful. This transforms
-the entire image, not its individual eyes or limbs; it does not add a 3D rig.
+the entire image; it does not add a 3D rig.
 The image also gently follows and tilts toward the mouse, using the existing
 `trackingScope`, `trackingRegion`, `followCursor` and `followRotation` props.
 Travel is bounded to 4% and tilt to 8/10 degrees, even outside the image.
@@ -94,6 +94,26 @@ internal usage but requires Brand team approval for public-facing usage.
 The motion setting grants no artwork license. GIF URLs are not an interactive
 rig: the existing upload API still accepts only static PNG, JPEG or WebP,
 normalizes to PNG, rejects animated files, and never fetches a remote URL.
+
+### Optional independent eyes
+
+For square front-facing artwork, an operator can configure
+`appearance.customAvatarEyes` through the existing agent configuration API:
+`{ baseAssetId, color, eyes: [{ x, y, width, height }, { x, y, width, height }] }`.
+Upload an eye-free base image and a complete static portrait through this
+agent's avatar upload endpoint, then reference the base's retained asset ID.
+Both assets must belong to this company and agent. The complete portrait stays
+the normal avatar, including small placements and API exports. Only the large
+character uses the eye-free base with two rounded eye layers. Eye coordinates
+are centers and dimensions in a square 0-100 view box; color is a six-digit hex.
+
+The eyes move independently by at most 2 image units horizontally and 1.5
+vertically, in addition to head movement. `followCursor={false}` centers them.
+The same reduced-motion, touch, visibility and cleanup rules apply. This is a
+2D layered effect, not reconstruction of a 3D model. Artwork must already be
+prepared for these layers; there is no automatic eye detection or editing UI.
+Replacing/resetting the uploaded avatar clears its eye layout. Portable agent
+exports omit the private eye-base reference along with other uploaded artwork.
 
 ## Development and verification
 

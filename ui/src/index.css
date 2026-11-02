@@ -1912,9 +1912,15 @@ html:has(.paperclip-app-shell[data-mobile="true"] [data-task-chat-shell]) #root 
 
 .agent-avatar-tracking { transition: transform 180ms ease-out; }
 
+.agent-avatar-eyes {
+  transform: translate(var(--avatar-eye-x, 0px), var(--avatar-eye-y, 0px));
+  transition: transform 120ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .agent-avatar-motion { animation: none; }
   .agent-avatar-tracking { transition: none; transform: none !important; }
+  .agent-avatar-eyes { transition: none; transform: none !important; }
 }
 
 .hb-pulse {

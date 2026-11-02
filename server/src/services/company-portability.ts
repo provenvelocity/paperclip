@@ -3096,6 +3096,7 @@ function readAgentSkillRefs(frontmatter: Record<string, unknown>) {
 /** Uploaded avatars belong to one company/agent; portable packages retain the preset fallback. */
 function portableAgentAppearance(value: unknown, warnings: string[], slug: string) {
   const appearance = agentAppearanceSchema.parse(value);
+  delete appearance.customAvatarEyes;
   if (appearance.customAvatarAssetId) {
     delete appearance.customAvatarAssetId;
     warnings.push(`Agent ${slug} uploaded avatar was omitted because image assets are instance-local. Upload it again after import.`);

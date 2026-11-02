@@ -10,6 +10,10 @@ export type AgentAvatarBackground = "transparent" | "paperclip-dark";
 export const PAPERCLIP_DARK_AVATAR_BACKGROUND = "#171717";
 export const CHARACTER_STATES = ["rest", "idle", "listening", "thinking", "working", "success", "confused", "sleepy", "loading"] as const;
 export type CharacterState = typeof CHARACTER_STATES[number];
+const customAvatarEyeSchema = z.object({
+  x: z.number().min(5).max(95), y: z.number().min(5).max(95),
+  width: z.number().positive().max(15), height: z.number().positive().max(25),
+}).strict();
 export const agentAppearanceSchema = z.object({
   schemaVersion: z.literal(1),
   characterVersion: z.literal("cap-v1"),
@@ -18,6 +22,12 @@ export const agentAppearanceSchema = z.object({
   customAvatarAssetId: z.uuid().optional(),
   /** Opt-in whole-image motion, not an articulated character rig. */
   customAvatarMotion: z.enum(["still", "reactive"]).optional(),
+  /** Square, eye-free artwork plus two eye rectangles in 0-100 image coordinates. */
+  customAvatarEyes: z.object({
+    baseAssetId: z.uuid(),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    eyes: z.tuple([customAvatarEyeSchema, customAvatarEyeSchema]),
+  }).strict().optional(),
 }).strict();
 export type AgentAppearance = z.infer<typeof agentAppearanceSchema>;
 

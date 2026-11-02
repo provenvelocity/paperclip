@@ -19,10 +19,12 @@ export interface AgentAvatarProps {
   pose?: CharacterState;
   muted?: boolean;
   className?: string;
+  eyeLayers?: boolean;
 }
-export function AgentAvatar({ agent, appearance, size = 24, name, label, pose = "rest", muted = false, className }: AgentAvatarProps) {
+export function AgentAvatar({ agent, appearance, size = 24, name, label, pose = "rest", muted = false, className, eyeLayers = false }: AgentAvatarProps) {
   const identity = resolveAgentAppearance(appearance ?? agent?.appearance, agent?.id);
-  const src = agentAvatarUrl(identity, size, 1, pose, muted);
+  const eyes = eyeLayers && identity.customAvatarAssetId ? identity.customAvatarEyes : undefined;
+  const src = eyes ? `/api/assets/${eyes.baseAssetId}/content` : agentAvatarUrl(identity, size, 1, pose, muted);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const initials = useAvatarInitials(deriveInitials(name ?? agent?.name ?? "Agent"));
   return (
@@ -31,6 +33,15 @@ export function AgentAvatar({ agent, appearance, size = 24, name, label, pose = 
       {failedUrl === src ? <span className="text-xs text-muted-foreground">{initials}</span> :
         <img src={src} srcSet={identity.customAvatarAssetId ? undefined : `${agentAvatarUrl(identity, size, 2, pose, muted)} 2x`} alt="" width={size} height={size}
           decoding="async" loading="lazy" className="size-full object-contain" onError={() => setFailedUrl(src)} />}
+      {eyes && failedUrl !== src && (
+        <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+          <g className="agent-avatar-eyes" fill={eyes.color}>
+            {eyes.eyes.map((eye, index) => <rect key={index} data-avatar-eye=""
+              x={eye.x - eye.width / 2} y={eye.y - eye.height / 2}
+              width={eye.width} height={eye.height} rx={eye.width / 2} />)}
+          </g>
+        </svg>
+      )}
     </span>
   );
 }

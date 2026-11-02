@@ -54,9 +54,11 @@ export async function prepareAgentConfiguration(db: Db, existing: AgentConfigura
     assertBuiltInAgentMetadataMutationAllowed(existing.metadata, data.metadata, options);
   }
 
-  if (data.appearance?.customAvatarAssetId) {
+  const avatarAssetIds = [data.appearance?.customAvatarAssetId, data.appearance?.customAvatarEyes?.baseAssetId]
+    .filter((assetId): assetId is string => Boolean(assetId));
+  for (const assetId of avatarAssetIds) {
     const [asset] = await db.select().from(assets).where(and(
-      eq(assets.id, data.appearance.customAvatarAssetId), eq(assets.companyId, existing.companyId),
+      eq(assets.id, assetId), eq(assets.companyId, existing.companyId),
       eq(assets.createdByAgentId, id),
     ));
     if (!asset || asset.contentType !== "image/png" || !asset.objectKey.startsWith(`${existing.companyId}/agent-avatars/${id}/`)) {

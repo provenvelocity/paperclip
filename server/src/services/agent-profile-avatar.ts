@@ -53,6 +53,7 @@ export async function setAgentProfileAvatar(db: Db, storage: StorageService, com
         return { agentId, appearance, avatarUrl: agentAvatarUrl(appearance) };
       }
       delete appearance.customAvatarAssetId;
+      delete appearance.customAvatarEyes;
       if (png) {
         const stored = await storage.putFile({ companyId, namespace: `agent-avatars/${agentId}`, originalFilename: "avatar.png", contentType: "image/png", body: png });
         newObjectKey = stored.objectKey;

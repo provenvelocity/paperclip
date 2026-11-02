@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import { appearanceForPalette } from "@paperclipai/shared";
+import { appearanceForPalette, PAPERCLIP_DARK_AVATAR_BACKGROUND, type AgentAppearance } from "@paperclipai/shared";
 import { AgentAvatar } from "./AgentAvatar";
 import { AgentCharacter } from "./AgentCharacter";
 
@@ -70,10 +70,14 @@ it("shares the single live-character slot and releases it when an animated avata
 });
 
 it("follows the mouse with bounded translation and tilt and cleans up tracking", async () => {
-    const appearance = {
+    const appearance: AgentAppearance = {
       ...appearanceForPalette("deep-tide"),
       customAvatarAssetId: "22222222-2222-4222-8222-222222222222",
       customAvatarMotion: "reactive" as const,
+      customAvatarEyes: {
+        baseAssetId: "33333333-3333-4333-8333-333333333333", color: PAPERCLIP_DARK_AVATAR_BACKGROUND,
+        eyes: [{ x: 33, y: 58, width: 6, height: 14 }, { x: 50, y: 58, width: 6, height: 14 }],
+      },
     };
     let intersect: IntersectionObserverCallback | undefined;
     const reduced = Object.assign(new EventTarget(), { matches: false });
@@ -103,19 +107,26 @@ it("follows the mouse with bounded translation and tilt and cleans up tracking",
       } as DOMRect);
       await act(async () => intersect?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
       const target = container.querySelector<HTMLElement>(".agent-avatar-tracking")!;
+      expect(container.querySelector("img")?.getAttribute("src")).toContain(appearance.customAvatarEyes!.baseAssetId);
+      expect(container.querySelectorAll("[data-avatar-eye]")).toHaveLength(2);
       pointer(document.documentElement);
       expect(target.style.transform).toBe("");
       pointer(hero, "touch");
       expect(target.style.transform).toBe("");
       pointer(hero);
       expect(target.style.transform).toBe("perspective(600px) translate(4%, 0%) rotateX(0deg) rotateY(10deg)");
+      expect(target.style.getPropertyValue("--avatar-eye-x")).toBe("2px");
+      expect(target.style.getPropertyValue("--avatar-eye-y")).toBe("0px");
       hero.dispatchEvent(new Event("pointerleave"));
       expect(target.style.transform).toBe("");
+      expect(target.style.getPropertyValue("--avatar-eye-x")).toBe("");
       pointer(hero, "mouse", 150, -100000);
       expect(target.style.transform).toBe("perspective(600px) translate(0%, -4%) rotateX(8deg) rotateY(0deg)");
+      expect(target.style.getPropertyValue("--avatar-eye-y")).toBe("-1.5px");
       await render("page", false, true);
       pointer(document.documentElement);
       expect(target.style.transform).toBe("perspective(600px) translate(0%, 0%) rotateX(0deg) rotateY(10deg)");
+      expect(target.style.getPropertyValue("--avatar-eye-x")).toBe("0px");
       await render("page", true, false);
       pointer(document.documentElement);
       expect(target.style.transform).toBe("perspective(600px) translate(4%, 0%) rotateX(0deg) rotateY(0deg)");

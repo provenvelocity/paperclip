@@ -43,6 +43,18 @@ describe("agent appearance", () => {
     }
     expect(agentAppearanceSchema.safeParse({ ...appearance, customAvatarMotion: "javascript" }).success).toBe(false);
   });
+  it("validates optional eye artwork references and bounded eye layout", () => {
+    const customAvatarEyes = {
+      baseAssetId: "33333333-3333-4333-8333-333333333333", color: "#4869ff",
+      eyes: [{ x: 33, y: 58, width: 6, height: 14 }, { x: 50, y: 58, width: 6, height: 14 }],
+    };
+    const appearance = { ...appearanceForPalette("deep-tide"), customAvatarEyes };
+    expect(agentAppearanceSchema.safeParse(appearance).success).toBe(true);
+    for (const patch of [
+      { baseAssetId: "https://example.test/image.png" }, { color: "url(javascript:bad)" },
+      { eyes: [] }, { eyes: [{ x: -1, y: 50, width: 500, height: 14 }, customAvatarEyes.eyes[1]] },
+    ]) expect(agentAppearanceSchema.safeParse({ ...appearance, customAvatarEyes: { ...customAvatarEyes, ...patch } }).success).toBe(false);
+  });
   it("uses a separate URL for opaque Slack exports without changing ordinary portraits", () => {
     const appearance = appearanceForPalette("cherry-pop");
     expect(agentAvatarUrl(appearance, 512, 1, "rest", false, "paperclip-dark")).toBe("/api/agent-avatars/cap-v1/cherry-pop/rest.png?size=512&scale=1&background=paperclip-dark");

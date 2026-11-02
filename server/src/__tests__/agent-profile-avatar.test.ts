@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createDb, agents, companies, assets, activityLog, authUsers, companyMemberships, mcpOauthClients, mcpOauthGrants, dotAgentBindings, principalPermissionGrants } from "@paperclipai/db";
-import { appearanceForPalette, MAX_AGENT_AVATAR_BYTES } from "@paperclipai/shared";
+import { appearanceForPalette, MAX_AGENT_AVATAR_BYTES, type AgentAppearance } from "@paperclipai/shared";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createStorageService } from "../storage/service.js";
@@ -68,6 +68,14 @@ it("uploads, normalizes, serves privately, retries without duplication, and rese
   expect(content.headers["cache-control"]).toContain("private");
   expect(await sharp(content.body).metadata()).toMatchObject({ format: "png", width: 512, height: 384 });
   expect((await agentService(db).getById(f.agent.id))?.avatarUrl).toBe(upload.body.avatarUrl);
+  const customAvatarEyes: AgentAppearance["customAvatarEyes"] = {
+    baseAssetId: upload.body.appearance.customAvatarAssetId, color: "#4869ff",
+    eyes: [{ x: 33, y: 58, width: 6, height: 14 }, { x: 50, y: 58, width: 6, height: 14 }],
+  };
+  const layered = await agentService(db).update(f.agent.id, {
+    appearance: { ...upload.body.appearance, customAvatarEyes },
+  });
+  expect(layered?.appearance?.customAvatarEyes).toEqual(customAvatarEyes);
   const reset = await request(app).put(path).send({ imageBase64: null }).expect(200);
   expect(reset.body.appearance).toEqual(f.agent.appearance);
   expect(reset.body.avatarUrl).toContain("/api/agent-avatars/");
@@ -84,6 +92,11 @@ it("rejects other agents, companies, viewers, and foreign asset references", asy
   await request(appFor({ type: "none" })).put(path).send({ imageBase64 }).expect(401);
   const foreign = await setAgentProfileAvatar(db, storage, other.company.id, other.agent.id, { imageBase64 }, other.actor);
   await expect(agentService(db).update(f.agent.id, { appearance: foreign.appearance })).rejects.toThrow("avatar upload");
+  await expect(agentService(db).update(f.agent.id, { appearance: {
+    ...f.agent.appearance!,
+    customAvatarEyes: { baseAssetId: foreign.appearance.customAvatarAssetId!, color: "#4869ff",
+      eyes: [{ x: 33, y: 58, width: 6, height: 14 }, { x: 50, y: 58, width: 6, height: 14 }] },
+  } })).rejects.toThrow("avatar upload");
   await request(appFor({ type: "agent", agentId: f.agent.id, companyId: f.company.id })).get(foreign.avatarUrl).expect(404);
 });
 
