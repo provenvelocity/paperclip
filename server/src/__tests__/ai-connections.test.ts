@@ -9,6 +9,7 @@ vi.mock("../services/subscription-refresh.js", () => ({ refreshSubscriptionConne
 import * as localCredentials from "../services/local-ai-credentials.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash, randomUUID } from "node:crypto";
+import { rootCertificates } from "node:tls";
 import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { localEncryptedProvider } from "../secrets/local-encrypted-provider.js";
@@ -1327,11 +1328,12 @@ describe("managed AI connections", () => {
     ["openai", "codex_local", "responses"],
     ["anthropic", "claude_local", "messages"],
     ["openai", "opencode_local", "chat"],
-  ] as const)("prepares a no-auth %s endpoint without a vault secret", async (provider, adapterType, protocol) => {
+    ["openai", "hermes_local", "chat"],
+  ] as const)("prepares a no-auth %s private-network endpoint without a vault secret", async (provider, adapterType, protocol) => {
     const account = await service.save(companyId, "alice", {
       provider, method: "api_key", ownership: "personal", name: `No-auth ${adapterType}`,
       agentIds: [], allAgents: true,
-      routing: { kind: "local", protocol, baseUrl: "http://127.0.0.1:9000/v1", auth: "none", models: [] },
+      routing: { kind: "local", protocol, baseUrl: "http://192.168.68.84:8000/v1", auth: "none", models: [] },
     }, "");
     const binding = { provider, method: "api_key", mode: "connection", connectionId: account.connectionId, grantId: account.grantId } as const;
     const config = { model: "fixture-model", env: { OPENAI_API_KEY: "host-key", ANTHROPIC_API_KEY: "host-key" } };
@@ -1341,9 +1343,63 @@ describe("managed AI connections", () => {
       expect(first.sessionIdentity).toBe(second.sessionIdentity);
       expect(first.sessionIdentity).toContain("no-auth");
       expect(JSON.stringify(first.config)).not.toContain("host-key");
+      expect(JSON.stringify(first.config)).toContain("http://192.168.68.84:8000/v1");
       const [grant] = await db.select().from(connectionGrants).where(eq(connectionGrants.id, account.grantId));
       expect(grant.credentialSecretRefs).toEqual([]);
     } finally { await Promise.all([first.cleanup(), second.cleanup()]); }
+  });
+  it("persists private HTTPS certificate trust and isolates its disposable runtime files", async () => {
+    const routing = { kind: "local", protocol: "responses", auth: "none",
+      baseUrl: "https://192.168.68.84:8000/v1", models: [], caCertificate: rootCertificates[0] } as const;
+    const account = await service.save(companyId, "alice", {
+      provider: "openai", method: "api_key", ownership: "personal", name: "Private TLS",
+      agentIds: [], allAgents: true, routing: { ...routing, models: [] },
+    }, "");
+    const [stored] = await db.select().from(toolConnections).where(eq(toolConnections.id, account.connectionId));
+    expect(stored.config.ai).toMatchObject({ routing });
+    const runInput = { ...input, adapterType: "codex_local", responsibleUserId: "alice",
+      binding: { provider: "openai", method: "api_key", mode: "delegated", ...account } as const, config: { model: "fixture" } };
+    const first = await prepareManagedAiRuntime(db, runInput);
+    const second = await prepareManagedAiRuntime(db, runInput);
+    const env = first.config.env;
+    const remoteProcess = vi.spyOn(executionTarget, "runAdapterExecutionTargetProcess")
+      .mockResolvedValue({ exitCode: 0, signal: null, timedOut: false, stdout: "", stderr: "" });
+    try {
+      expect(await readFile(String(env.SSL_CERT_FILE), "utf8")).toContain(routing.caCertificate);
+      expect(env.NODE_EXTRA_CA_CERTS).toBe(env.SSL_CERT_FILE);
+      expect(env.REQUESTS_CA_BUNDLE).toBe(env.SSL_CERT_FILE);
+      expect(env).not.toHaveProperty("NODE_TLS_REJECT_UNAUTHORIZED");
+      expect(managedAiSessionFingerprintConfig(first.config, first.home))
+        .toEqual(managedAiSessionFingerprintConfig(second.config, second.home));
+      const { routing: savedRouting } = (stored.config.ai as { routing: typeof routing });
+      await expect(service.save(companyId, "alice", {
+        provider: "openai", method: "api_key", ownership: "personal", name: "Private TLS",
+        agentIds: [], allAgents: true, connectionId: account.connectionId,
+        routing: { ...savedRouting, models: [], caCertificate: rootCertificates[1] },
+      }, "")).rejects.toThrow("retain");
+      const target = { kind: "remote", transport: "sandbox", remoteCwd: "/tmp" } as const;
+      await first.prepareTlsForTarget?.(target, first.config);
+      expect(first.config.env.SSL_CERT_FILE).toMatch(/^\/tmp\/paperclip-ai-ca-/);
+      expect(first.config.env.NODE_EXTRA_CA_CERTS).toBe(first.config.env.SSL_CERT_FILE);
+      await first.prepareTlsForTarget?.(target, first.config);
+      expect(remoteProcess).toHaveBeenCalledTimes(1);
+    } finally {
+      try {
+        await Promise.all([first.cleanup(), second.cleanup()]);
+        expect(remoteProcess).toHaveBeenCalledTimes(2);
+      } finally { remoteProcess.mockRestore(); }
+    }
+    await expect(access(String(env.SSL_CERT_FILE))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+  it("rejects malformed certificate trust before persisting a connection", async () => {
+    await expect(service.save(companyId, "alice", {
+      provider: "openai", method: "api_key", ownership: "personal", name: "Invalid TLS",
+      agentIds: [], allAgents: true, routing: {
+        kind: "local", protocol: "responses", auth: "none", models: [],
+        baseUrl: "https://192.168.68.84:8000/v1",
+        caCertificate: "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----",
+      },
+    }, "")).rejects.toThrow("not a valid PEM X.509 certificate");
   });
   it("never restores retained Grok transcripts into same-user runtime homes", async () => {
     const account = await service.save(companyId, "alice", {

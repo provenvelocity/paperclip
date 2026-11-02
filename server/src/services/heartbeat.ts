@@ -2770,6 +2770,7 @@ export function heartbeatService(
         appendRunEvent,
       });
       if (managedAiRuntime && aiBinding) {
+        await managedAiRuntime.prepareTlsForTarget?.(executionTarget, resolvedConfig);
         try { await assertManagedAiProjectAuth({ ...resolvedConfig, cwd: executionWorkspace.cwd }, aiBinding.provider, executionTarget); }
         catch { throw new ConfigurationIncompleteFailure("Project authentication conflicts with this agent’s managed AI connection", { configurationIncomplete: { reason: "ai_connection_incompatible", actionUrl: `/agents/${agent.id}/runtime` } }); }
       }

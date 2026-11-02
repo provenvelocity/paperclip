@@ -11,6 +11,17 @@ Product map: [connection-setup](../feature-map/connection-setup.md).
 
 Feature ID: `connection-setup`.
 
+Private model routing uses the existing company-scoped AI connection API and
+grant checks. Shared schema validation limits HTTP and custom PEM trust to
+explicit private IP/loopback destinations; saved X.509 trust is projected only
+into the selected disposable runtime and staged for remote execution.
+Reconnect cannot change either destination or trust. No new agent permission,
+credential bypass, or general network egress guarantee is introduced.
+Evidence: [saved-connection fixtures](../../server/src/__tests__/ai-connections.test.ts),
+[TLS fixtures](../../server/src/__tests__/ai-provider-tls.test.ts), and
+[address policy](../../packages/shared/src/ai-provider-routing.test.ts).
+These fixtures do not establish live model inference or remote-provider qualification.
+
 Direct `copilot_local` token setup reuses company-scoped AI connection creation,
 owner/audience checks, encrypted secret references and runtime grant resolution.
 `verificationAdapter: copilot_local` is allowed only for GitHub API-token

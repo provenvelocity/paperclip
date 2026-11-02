@@ -49,6 +49,7 @@ import { logger } from "../middleware/logger.js";
 import { logActivity } from "./activity-log.js";
 import { secretService } from "./secrets.js";
 import { probeAiConnectionUsage } from "./ai-connection-usage.js";
+import { validateAiProviderCertificate } from "./ai-provider-tls.js";
 
 /** Same human audience displayed by the existing Connections identity controls. */
 function canUseCredential(
@@ -580,6 +581,7 @@ export function aiConnectionService(db: Db) {
   ) {
     await managementContext?.reauthorize();
     const routing = "routing" in input ? input.routing : undefined;
+    if (routing) validateAiProviderCertificate(routing);
     if (!(await membership(companyId, userId)))
       throw forbidden("An active company member must own this connection");
     const reconnect = input.connectionId

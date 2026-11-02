@@ -1,11 +1,28 @@
 import { z } from "zod";
 
+/** Only explicit private addresses qualify; arbitrary DNS names can rebind. */
+export function isLocalAiProviderHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host === "[::1]") return true;
+  if (/^\[(?:fc|fd)[0-9a-f]{2}:/.test(host)) return true;
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+  const octets = host.split(".").map(Number);
+  if (octets.some((octet) => octet > 255)) return false;
+  return octets[0] === 127 || octets[0] === 10 ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168);
+}
+
+const certificateBundlePattern = /^(?:-----BEGIN CERTIFICATE-----\r?\n[A-Za-z0-9+/=\r\n]+-----END CERTIFICATE-----\s*)+$/;
+
 /** Value-free routing stored on the connection, never supplied by an agent binding. */
 export const aiProviderRoutingSchema = z
   .object({
     kind: z.enum(["openrouter", "bedrock", "gateway", "local"]),
     protocol: z.enum(["responses", "messages", "chat", "bedrock"]),
     baseUrl: z.string().trim().max(2048).optional(),
+    caCertificate: z.string().trim().min(1).max(65536)
+      .regex(certificateBundlePattern, "Enter PEM certificates only, never a private key.").optional(),
     auth: z
       .enum(["bearer", "api_key", "none"])
       .default("bearer"),
@@ -51,25 +68,27 @@ export const aiProviderRoutingSchema = z
       invalid("OpenRouter uses its official endpoint and an API key.");
     if (route.auth === "api_key" && route.protocol !== "messages")
       invalid("API-key header authentication requires Anthropic Messages.");
+    if (route.caCertificate && route.kind !== "local" && route.kind !== "gateway")
+      invalid("Custom certificates require a private-network model endpoint.");
     if (route.kind === "gateway" || route.kind === "local") {
       try {
         const url = new URL(route.baseUrl ?? "");
-        const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
-          url.hostname,
-        );
+        const local = isLocalAiProviderHostname(url.hostname);
         if (
           url.username ||
           url.password ||
           url.search ||
           url.hash ||
-          (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
+          (url.protocol !== "https:" && !(url.protocol === "http:" && local))
         )
           throw new Error();
-        if (route.kind === "local" && !loopback)
-          invalid("A local endpoint must use localhost or a loopback address.");
+        if (route.kind === "local" && !local)
+          invalid("A local endpoint must use loopback or a private IP address (10/8, 172.16/12, 192.168/16, or IPv6 ULA).");
+        if (route.caCertificate && (!local || url.protocol !== "https:"))
+          invalid("Custom certificates require HTTPS with a loopback or private IP address.");
       } catch {
         invalid(
-          "Enter an HTTPS base URL without credentials, query parameters, or a fragment. Local endpoints may use HTTP.",
+          "Enter an HTTPS base URL without credentials, query parameters, or a fragment. Loopback and private IP addresses may use HTTP.",
         );
       }
     }

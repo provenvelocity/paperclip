@@ -669,8 +669,9 @@ discovery path, preserve the provider's ordering, and adapt model IDs to the sel
 harness. Explicit connection model lists take precedence. Catalog discovery sends
 no credentials; a failed request offers refresh and manual model entry.
 
-`config.ai.routing` stores only kind, protocol, URL, auth method, region, and
-optional model IDs/labels. The vault stores provider API keys, including Bedrock API keys.
+`config.ai.routing` stores kind, protocol, URL, auth method, region, optional
+model IDs/labels, and an optional public PEM certificate bundle for private HTTPS.
+Private keys are not accepted. The vault stores provider API keys, including Bedrock API keys.
 Fixed bindings contain only connection/grant identity. The server checks actual
 connection metadata, company, owner/audience, installation, status, and protocol
 before resolving secrets. Advanced connections cannot silently become native
@@ -692,10 +693,38 @@ against a process debugger running as the runner user.
 Only fixed official provider endpoints receive control-plane key checks. Custom
 endpoints and Bedrock are exercised by the selected harness in the selected
 execution environment, through **Run test**. Saving a custom connection records
-configuration; it is not proof that the model can respond. HTTPS is required for
-remote URLs; loopback endpoints may use HTTP. Localhost refers to the agent’s
-execution environment, including when it is a sandbox. URLs cannot contain user
-credentials, query parameters, or fragments.
+configuration; it is not proof that the model can respond.
+
+**Local endpoint** accepts loopback (`localhost`, `127/8`, `::1`), RFC1918 private
+IPv4 (`10/8`, `172.16/12`, `192.168/16`), and IPv6 unique-local (`fc00::/7`)
+addresses over HTTP or HTTPS. For example, an OpenAI-compatible server on the LAN
+can use `http://192.168.68.84:8000/v1`, **No authentication**, and its exact served
+model ID. Select Responses for Codex or Chat Completions for OpenCode/Hermes,
+according to the server's supported API. Enter the API base, not
+`/v1/chat/completions`. No dummy API key is required.
+
+The same private-address HTTP exception applies to **Custom gateway**.
+Public gateways still require HTTPS with normal certificate verification.
+Arbitrary DNS names (including `.local` names), link-local/metadata addresses,
+and public IPs do not qualify for the HTTP or custom-certificate exception.
+Use an explicit private IP for a LAN server. Localhost refers to the agent's
+execution environment, including when it is a container or sandbox; all other
+addresses must also be reachable from that environment. URLs cannot contain user
+credentials, query parameters, or fragments. This validates the configured
+destination; it is not an egress firewall or a replacement for network isolation.
+
+For private HTTPS with a self-signed certificate, paste the server certificate
+or issuing CA's public PEM certificate into **Trusted local certificate**.
+The certificate must cover the configured IP/address in its subject alternative
+names and be within its validity period. Paperclip validates the PEM as X.509,
+then supplies an owner-only disposable trust bundle through `NODE_EXTRA_CA_CERTS`,
+`SSL_CERT_FILE`, and `REQUESTS_CA_BUNDLE` to the selected runtime processes.
+Remote execution receives a separately staged public bundle which is removed
+when the managed runtime is cleaned up. Trust is process-scoped, not a system
+trust-store change; TLS verification is never disabled. Reconnect preserves the
+certificate as well as the endpoint. Use a new connection to change either.
+Use **Run test** in the intended environment to verify its installed harness,
+certificate, endpoint, and protocol together.
 
 Managed Grok uses a disposable runtime home. Paperclip does not retain or restore
 Grok transcript files into host temporary directories: private file modes do not

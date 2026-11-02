@@ -16,6 +16,7 @@ import { ConnectionAccessDefaults, connectionDefaultSummarySentence } from "@/fe
 import { AppLogo } from "@/pages/apps/AppLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -114,6 +115,7 @@ export function AiProviderSetup({
     reconnect?.routing?.auth ?? "bearer",
   );
   const [baseUrl, setBaseUrl] = useState(reconnect?.routing?.baseUrl ?? "");
+  const [caCertificate, setCaCertificate] = useState(reconnect?.routing?.caCertificate ?? "");
   const [region, setRegion] = useState(
     reconnect?.routing?.region ?? "us-east-1",
   );
@@ -172,23 +174,28 @@ export function AiProviderSetup({
   };
   const save = useMutation({
     mutationFn: () => {
-      const routing =
+      const routingResult =
         reconnect?.routing ??
-        aiProviderRoutingSchema.parse({
+        {
           kind: provider,
           protocol: provider === "bedrock" ? "bedrock" : protocol,
           auth: provider === "openrouter" ? "bearer" : auth,
           ...(provider === "bedrock"
             ? { region }
             : provider === "gateway" || provider === "local"
-              ? { baseUrl }
+              ? { baseUrl, ...(caCertificate.trim() ? { caCertificate } : {}) }
               : {}),
           models: models
             .split(",")
             .map((id) => id.trim())
             .filter(Boolean)
             .map((id) => ({ id })),
-        });
+        };
+      const parsedRouting = aiProviderRoutingSchema.safeParse(routingResult);
+      if (!parsedRouting.success) {
+        throw new Error(parsedRouting.error.issues.map(issue => issue.message).join(" "));
+      }
+      const routing = parsedRouting.data;
       return aiConnectionsApi.create(
         companyId,
         createAiConnectionSchema.parse({
@@ -341,6 +348,26 @@ export function AiProviderSetup({
                   disabled={Boolean(reconnect)}
                 />
               </label>
+              <p className="text-xs text-muted-foreground">
+                Use the API base URL, such as /v1, not /v1/chat/completions.
+                HTTP is allowed only for loopback or private IP addresses.
+                The address must be reachable from the agent’s execution environment.
+              </p>
+              <label className="block space-y-2 text-xs text-muted-foreground">
+                Trusted local certificate (optional)
+                <Textarea
+                  aria-label="Trusted local certificate"
+                  placeholder="-----BEGIN CERTIFICATE-----"
+                  value={caCertificate}
+                  onChange={(e) => setCaCertificate(e.target.value)}
+                  disabled={Boolean(reconnect)}
+                />
+                <span className="block">
+                  For self-signed HTTPS on a private IP or loopback address, paste
+                  the PEM server certificate or issuing CA certificate, never its
+                  private key. Certificate identity and expiry checks remain enabled.
+                </span>
+              </label>
               <label className="block space-y-2 text-xs text-muted-foreground">
                 API format
                 <Select
@@ -434,7 +461,7 @@ export function AiProviderSetup({
           {save.error && (
             <p role="alert" className="text-sm text-destructive">
               {save.error instanceof Error && save.error.name === "ZodError"
-                ? "Check the URL, API format, and authentication fields."
+                ? "Check the URL, API format, authentication, and certificate fields."
                 : save.error.message}
             </p>
           )}

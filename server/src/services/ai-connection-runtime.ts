@@ -16,6 +16,7 @@ import {
   type AiConnectionBinding,
 } from "@paperclipai/shared";
 import { managedProviderRouting } from "./ai-provider-routing.js";
+import { AI_PROVIDER_CA_FILENAME, AI_PROVIDER_TLS_ENV_KEYS, prepareAiProviderTls, stageAiProviderTls } from "./ai-provider-tls.js";
 import { aiConnectionService } from "./ai-connections.js";
 import { subscriptionService } from "./subscriptions.js";
 import { refreshSubscriptionConnection } from "./subscription-refresh.js";
@@ -223,6 +224,11 @@ export function managedAiSessionFingerprintConfig(
   }
   if (env.GEMINI_HOME === path.join(managedHome, "provider")) env.GEMINI_HOME = path.join("<managed-ai-home>", "provider");
   if (env.COPILOT_HOME === path.join(managedHome, "provider")) env.COPILOT_HOME = path.join("<managed-ai-home>", "provider");
+  for (const key of AI_PROVIDER_TLS_ENV_KEYS) {
+    if (env[key] === path.join(managedHome, "provider", AI_PROVIDER_CA_FILENAME)) {
+      env[key] = path.join("<managed-ai-home>", "provider", AI_PROVIDER_CA_FILENAME);
+    }
+  }
   const managed = config.managedAiConnection as Record<string, unknown> | undefined;
   if (managed?.sessionIdentity) {
     for (const key of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENCODE_AUTH_JSON", "OPENCODE_CONFIG_CONTENT", "COPILOT_GITHUB_TOKEN"]) {
@@ -409,9 +415,10 @@ export async function prepareManagedAiRuntime(
       if (antigravitySubscription) await writeFile(authFile, originalCredential, { mode: 0o600 });
     }
     const projected = routing ? managedProviderRouting(routing, harness, value, typeof input.config.model === "string" ? input.config.model : "") : undefined;
-    if (projected) {
+    if (projected && routing) {
       const customHeaders = env.ANTHROPIC_CUSTOM_HEADERS ?? process.env.ANTHROPIC_CUSTOM_HEADERS;
       Object.assign(env, projected.env);
+      Object.assign(env, await prepareAiProviderTls(routing, providerHome));
       if (projected.env.ANTHROPIC_CUSTOM_HEADERS && customHeaders !== undefined) {
         // Preserve secret references until adapter resolution; the adapter merges
         // attribution after resolving them. Ordinary gateway headers survive too.
@@ -443,7 +450,12 @@ export async function prepareManagedAiRuntime(
     let ownsGoogleRecovery = false;
     let removalOnly = false;
     let deferredWriteback: { cause: unknown } | undefined;
+    let remoteTls: Awaited<ReturnType<typeof stageAiProviderTls>> | undefined;
     const removeHome = async () => {
+      if (remoteTls) {
+        await remoteTls.cleanup();
+        remoteTls = undefined;
+      }
       if (home) await rm(home, { recursive: true, force: true });
       homeRemoved = true;
       releaseCredentialHome?.();
@@ -612,6 +624,13 @@ export async function prepareManagedAiRuntime(
       }
     };
     return {
+      ...(routing?.caCertificate ? {
+        prepareTlsForTarget: async (target: AdapterExecutionTarget | null | undefined, config: Record<string, unknown>) => {
+          if (!target || target.kind === "local") return;
+          remoteTls ??= await stageAiProviderTls(providerHome, target);
+          config.env = { ...(config.env as Record<string, unknown> | undefined), ...remoteTls.env };
+        },
+      } : {}),
       sessionIdentity,
       ...(retainedCleanupScope ? { retainedCleanupScope } : {}),
       ...(subscriptionFile && input.binding.provider === "openai" && credentialRef && freshness ? {

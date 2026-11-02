@@ -33,6 +33,39 @@ it("reconnects an older OpenRouter account without adding routing metadata", asy
 });
 
 const providerSources = ["openrouter", "bedrock", "responses-api", "messages-api", "chat-completions-api", "local"];
+it.each([
+  { baseUrl: "http://192.168.68.84:8000/v1", caCertificate: "", valid: true },
+  { baseUrl: "https://192.168.68.84:8000/v1", caCertificate: "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----", valid: true },
+  { baseUrl: "http://203.0.113.8:8000/v1", caCertificate: "", valid: false },
+])("validates private endpoint setup for $baseUrl", async ({ baseUrl, caCertificate, valid }) => {
+  vi.mocked(aiConnectionsApi.create).mockClear();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  client.setQueryData(["ai-connections", "company", undefined], { canManageConnections: true, connections: [] });
+  client.setQueryData(["agents", "company", "provider-access"], []);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<QueryClientProvider client={client}><AiProviderSetup companyId="company" initialProvider="local" onCancel={() => {}} onComplete={() => {}} /></QueryClientProvider>));
+    for (const [label, value] of [["Provider URL", baseUrl], ["Trusted local certificate", caCertificate], ["API key", "fixture-key"]]) {
+      const field = container.querySelector(`[aria-label="${label}"]`)!;
+      await act(async () => {
+        const prototype = field.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(field, value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+    await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    if (valid) {
+      expect(aiConnectionsApi.create).toHaveBeenCalledWith("company", expect.objectContaining({
+        routing: expect.objectContaining({ kind: "local", baseUrl, ...(caCertificate ? { caCertificate } : {}) }),
+      }));
+    } else {
+      expect(aiConnectionsApi.create).not.toHaveBeenCalled();
+      expect(container.textContent).toContain("Loopback and private IP addresses may use HTTP");
+    }
+  } finally { await act(async () => root.unmount()); client.clear(); }
+});
+
 it("shows advanced providers directly when entered from advanced connection mode", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData(["ai-connections", "company", undefined], { canManageConnections: true, connections: [] });

@@ -16,6 +16,14 @@ pending Antigravity execution profile. See [AI connections](../../doc/connection
 
 Feature ID: `connection-setup`.
 
+Local model setup accepts no-auth OpenAI-compatible endpoints at explicit private
+IP or loopback addresses over HTTP. Private HTTPS can add a public PEM certificate
+without disabling TLS verification. Public HTTP and public custom-certificate
+exceptions remain unavailable. Connection setup alone does not qualify inference;
+use Run test from the intended execution environment.
+See [private endpoint setup](../../doc/connections/AI-CONNECTIONS.md#advanced-provider-routing-2026-10-02)
+and [form fixtures](../../ui/src/components/ai-connections/AiProviderSetup.test.tsx).
+
 Direct GitHub Copilot CLI agents can adopt a managed token in Configuration →
 Connection using the existing masked credential form and encrypted connection
 storage. Local verification uses a bounded CLI model prompt, discloses usage and
