@@ -81,18 +81,40 @@ For the Copilot token entered in this form:
 | --- | --- |
 | Resource owner | Your personal account, **not an organization** |
 | Repository access | **Public repositories** is sufficient for Copilot authentication; no private repository access required |
-| Permissions → Account → Copilot Requests | **Read and write** (`copilot_requests=write`) |
+| Permissions → Account → Copilot Requests | **Read-only** (`user_copilot_requests=read` in the token-creation link) |
 | All other account/repository permissions | **No access**; GitHub may include automatic **Metadata: Read-only** |
 
-GitHub's [account-permission reference](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#account-permissions)
-lists `copilot_requests` with access level `write`. This authorizes Copilot requests
+GitHub's token-creation screen currently offers **Read-only** for Copilot Requests.
+The [official Copilot token template](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters)
+uses `user_copilot_requests=read`. A separate permission-reference table currently
+lists a conflicting `copilot_requests=write`; do not use that to look for a
+nonexistent write option in the token form. Read-only here still authorizes Copilot requests
 against your subscription, not Git repository writes. It does not limit local
 file changes or shell commands; the adapter still enables all tools.
 Choose an expiration appropriate for the pilot and keep the token out of source.
 
+[Open the prefilled Copilot token form](https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&expires_in=30)
+to request this permission and a 30-day expiration. Review the form and generate
+the token yourself; opening the link does not create one. GitHub CLI has no
+supported command/API to create a personal fine-grained PAT. `gh auth token`
+prints an existing CLI credential; it is not a token-creation command and should
+not be used for this setup. From a desktop terminal, open the prefilled form with:
+
+```bash
+python3 -m webbrowser 'https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&expires_in=30'
+```
+
+Run this on the machine with your browser, not inside the Paperclip container.
+Never paste the generated token into chat.
+
 If you separately configure a Git/GitHub repository credential, select **Only
 select repositories**, then only the pilot repository. These are optional and
 **not** required on the Copilot-only token:
+
+**Add permissions** selects a category; change its access level using the
+**Access** dropdown on the added row. For example, Contents may initially show
+Read and write; choose Read-only if you only need cloning/reading. Metadata is
+fixed Read-only. Copilot Requests currently also offers only Read-only.
 
 | Repository permission | Read-only use | Write use |
 | --- | --- | --- |

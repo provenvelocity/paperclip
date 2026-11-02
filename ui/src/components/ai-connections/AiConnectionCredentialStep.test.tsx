@@ -41,8 +41,16 @@ it.each([true, false])("submits a masked direct Copilot token through the existi
   expect(container.textContent).toContain("Copilot Requests");
   expect(container.textContent).toContain("short CLI model prompt");
   expect(container.textContent).toContain("encrypted secret storage");
-  expect(container.textContent).toContain("Copilot Requests: Read and write");
-  expect(container.textContent).toContain("copilot_requests=write");
+  expect(container.textContent).toContain("Copilot Requests: Read-only");
+  expect(container.textContent).toContain("user_copilot_requests=read");
+  expect(container.textContent).not.toContain("copilot_requests=write");
+  const tokenLink = Array.from(container.querySelectorAll("a")).find(link => link.textContent === "Open prefilled Copilot token form")!;
+  const tokenUrl = new URL(tokenLink.href);
+  expect(tokenUrl.origin).toBe("https://github.com");
+  expect(tokenUrl.pathname).toBe("/settings/personal-access-tokens/new");
+  expect(tokenUrl.searchParams.get("user_copilot_requests")).toBe("read");
+  expect(tokenUrl.searchParams.get("expires_in")).toBe("30");
+  expect(tokenUrl.searchParams.has("contents")).toBe(false);
   expect(container.textContent).toContain("no private repository access is required");
   expect(container.textContent).toContain("All other account and repository permissions: No access");
   expect(container.textContent).toContain("Contents: Read-only to clone/read; Read and write to push code");
