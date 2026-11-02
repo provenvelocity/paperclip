@@ -11,6 +11,14 @@ import {
 } from "./NewAgent.test-support";
 
 describe("New agent setup", () => {
+  it("renders configuration on HTTP LAN browsers without crypto.randomUUID", async () => {
+    vi.stubGlobal("crypto", { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
+    try {
+      await render("codex_local");
+      expect(container.textContent).toContain("Connect a model");
+      expect(api.hire).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("finishes Copilot CLI setup with an existing OAuth login and no provider keys", async () => {
     await render("copilot_local");
     expect(container.textContent).toContain("copilot login");

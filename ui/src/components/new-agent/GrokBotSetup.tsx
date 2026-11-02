@@ -4,6 +4,7 @@ import type { CreateGrokInvitation, DotPairing, GrokInvitation } from "@papercli
 import { grokBotApi } from "@/api/grokBot";
 import { agentsApi } from "@/api/agents";
 import { queryKeys } from "@/lib/queryKeys";
+import { createUuid } from "@/lib/uuid";
 import { GrokBotSetupContent, type GrokSetupStep } from "./GrokBotSetupContent";
 
 export function GrokBotSetup({ companyId, companyName, onBack, onClose }: {
@@ -61,7 +62,7 @@ export function GrokBotSetup({ companyId, companyName, onBack, onClose }: {
   }, gcTime: 0 });
   const verify = useMutation({ mutationFn: async () => {
     if (["rejected", "cancelled"].includes(binding?.routine?.lastExchange?.status ?? "")) verifyRequest.current = null;
-    verifyRequest.current ??= crypto.randomUUID();
+    verifyRequest.current ??= createUuid();
     await grokBotApi.verify(companyId, invitation!.agent.id, binding!.id, verifyRequest.current);
     await connection.refetch();
   }, gcTime: 0 });

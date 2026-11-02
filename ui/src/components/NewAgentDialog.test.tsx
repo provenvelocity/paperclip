@@ -86,6 +86,21 @@ afterEach(async () => {
   await act(async () => root.unmount());
   cache.clear();
   container.remove();
+  vi.unstubAllGlobals();
+});
+it("opens and saves a stable draft identity on HTTP LAN browsers without crypto.randomUUID", async () => {
+  vi.stubGlobal("crypto", { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
+  await act(async () => root.render(
+    <QueryClientProvider client={cache}><NewAgentDialog key="http-lan" /></QueryClientProvider>,
+  ));
+  expect(document.body.textContent).toContain("Agent name");
+  await name("LAN agent");
+  const setupId = agents.create.mock.calls[0][1].setupId;
+  expect(setupId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  await click("Back");
+  await name("Renamed LAN agent");
+  expect(agents.create).toHaveBeenCalledTimes(1);
+  expect(agents.update).toHaveBeenCalledWith(setupId, expect.objectContaining({ name: "Renamed LAN agent" }), "company-1");
 });
 async function name(value = "Ada & Co") {
   const input = document.querySelector("input")!;

@@ -31,6 +31,13 @@ Agent access: [companion](../agent-access-map/agents.md).
 
 Use New agent from the roster or `/agents/new`.
 
+The dialog and configuration page use the shared browser UUID helper so setup
+also opens on plain-HTTP LAN hosts where `crypto.randomUUID` is unavailable.
+The draft identity stays stable across name edits and retries. Regression
+fixtures cover both entry points with that secure-context API absent:
+[dialog](../../ui/src/components/NewAgentDialog.test.tsx) and
+[configuration](../../ui/src/pages/NewAgent.test.tsx).
+
 Submitting the name creates an inactive record before adapter selection or account setup.
 A name-only draft returns to adapter selection when reopened.
 Save & exit keeps its configuration; Finish setup on the agent returns to the

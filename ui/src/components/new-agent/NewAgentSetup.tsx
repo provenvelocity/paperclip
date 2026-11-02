@@ -52,6 +52,7 @@ import {
 import { resolveForcedKubernetesEnvironment } from "@/lib/forced-kubernetes-environment";
 import { environmentDisplayLabel } from "@/lib/managed-sandbox-environment";
 import { buildNewAgentRuntimeConfig } from "@/lib/new-agent-runtime-config";
+import { createUuid } from "@/lib/uuid";
 import {
   PROVIDER_ENV_KEYS,
   storeProviderApiKey,
@@ -192,7 +193,7 @@ function Setup({
   const [repository, setRepository] = useState("");
   const [branch, setBranch] = useState("");
   const [createdInSession, setCreated] = useState<Agent | null>(null);
-  const setupId = useRef(setupAgentId ?? crypto.randomUUID());
+  const setupId = useRef(setupAgentId ?? createUuid());
   if (setupAgentId) setupId.current = setupAgentId;
   const creating = useRef(false);
   const restored = useRef<string | null>(null);

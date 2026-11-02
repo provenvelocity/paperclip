@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Agent } from "@paperclipai/shared";
 import { agentsApi } from "@/api/agents";
 import { buildNewAgentRuntimeConfig } from "@/lib/new-agent-runtime-config";
+import { createUuid } from "@/lib/uuid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, ChevronRight } from "lucide-react";
 import { adaptersApi } from "@/api/adapters";
@@ -62,7 +63,7 @@ export function AgentBasicsDialog({
   const { selectedCompanyId: companyId } = useCompany();
   const cache = useQueryClient();
   const appearanceDraft = useAgentAppearanceDraft(`${companyId}:new-agent`);
-  const setupId = useRef(setupAgentId ?? crypto.randomUUID());
+  const [setupId] = useState(() => setupAgentId ?? createUuid());
   const saved = useRef<Agent | null>(null);
   const busy = useRef(false);
   const active = useRef(true);
@@ -122,17 +123,17 @@ export function AgentBasicsDialog({
     try {
       if (!companyId) throw new Error("Select an organization to create an agent.");
       let agent = saved.current;
-      if (!agent && setupAgentId) agent = await agentsApi.get(setupId.current, companyId);
+      if (!agent && setupAgentId) agent = await agentsApi.get(setupId, companyId);
       const creatingRecord = !agent;
       if (!agent) {
-        const existing = (await agentsApi.list(companyId)).filter(item => item.id !== setupId.current);
+        const existing = (await agentsApi.list(companyId)).filter(item => item.id !== setupId);
         const leader = existing.find(item => item.role === "ceo" && item.status !== "terminated");
         const provisionalAdapter = adapters?.some(item => item.type === "process" && item.disabled)
           ? choices[0]?.type : "process";
         if (!provisionalAdapter) throw new Error("No agent adapters are available on this instance.");
         // This adapter is provisional; the setup hold prevents execution.
         agent = await agentsApi.create(companyId, {
-          setupId: setupId.current, name: name.trim(), appearance: appearanceDraft.appearance,
+          setupId, name: name.trim(), appearance: appearanceDraft.appearance,
           role: existing.length ? "general" : "ceo", ...(leader ? { reportsTo: leader.id } : {}),
           adapterType: ["copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(provisionalAdapter) ? "paperclip_runner" : provisionalAdapter,
           ...(["copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(provisionalAdapter) ? { adapterConfig: { provider: "acpx", acpxAgent: provisionalAdapter === "copilot_runtime" ? "copilot" : provisionalAdapter === "kimi_runtime" ? "kimi" : "antigravity" } } : {}),

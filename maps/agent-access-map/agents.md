@@ -23,6 +23,10 @@ update does not claim operation-complete review or live agent verification.
 
 Capability ID: `agents/hire`.
 
+Browser setup identity generation supports HTTP LAN contexts through the shared
+UUID helper. This changes neither agent creation authority nor draft completion
+policy; opening the dialog alone creates no agent.
+
 Review: `baseline`.
 
 API: `present` — representative operation IDs:
