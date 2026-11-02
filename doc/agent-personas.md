@@ -66,6 +66,35 @@ Onboarding stores the eventual palette in its existing draft and presents gray
 until verified connection/hiring succeeds. Reconnect never randomizes identity.
 Names, explicit status badges, and status text remain authoritative.
 
+## User-supplied artwork motion
+
+Custom avatars remain company-scoped, normalized static images uploaded through
+the existing avatar API. They are still by default. For an agent with uploaded
+artwork, enable **Identity → Custom avatar motion → Animate uploaded artwork**
+and save. This persists `appearance.customAvatarMotion: "reactive"`; `"still"`
+disables it, and an omitted setting keeps existing behavior unchanged.
+
+The large `AgentCharacter` surface gently floats idle artwork, tilts while
+thinking/confused, and bobs while working/loading/successful. This transforms
+the entire image, not its individual eyes or limbs; it does not add a 3D rig.
+The image also gently follows and tilts toward the mouse, using the existing
+`trackingScope`, `trackingRegion`, `followCursor` and `followRotation` props.
+Travel is bounded to 4% and tilt to 8/10 degrees, even outside the image.
+Leaving the tracking region recenters it. Touch and coarse pointers do not
+track; listeners are removed while motion is inactive and on unmount.
+Small avatars and API-exported portraits
+remain static. Motion pauses offscreen, in background tabs, in rest/paused
+states, for `motion="still"`, or when reduced motion is enabled. Custom motion
+shares the existing one-live-character slot and does not load ClipLab or WebGL.
+
+Supply artwork you have permission to use and animate. No third-party mascot
+artwork is bundled or fetched by this feature. For example, GitHub's
+[mascot guidance](https://brand.github.com/graphic-elements/mascots) permits
+internal usage but requires Brand team approval for public-facing usage.
+The motion setting grants no artwork license. GIF URLs are not an interactive
+rig: the existing upload API still accepts only static PNG, JPEG or WebP,
+normalizes to PNG, rejects animated files, and never fetches a remote URL.
+
 ## Development and verification
 
 ClipLab provenance/licenses are under `packages/shared/src/cliplab/`.

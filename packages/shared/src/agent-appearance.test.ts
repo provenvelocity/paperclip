@@ -34,6 +34,15 @@ describe("agent appearance", () => {
     expect(renderAgentSvg(appearance, 48, 1)).toContain('id="agent-candle-light"');
     expect(renderAgentSvg(appearance, 24, 2)).toBe(eyes);
   });
+  it("keeps custom motion opt-in and accepts only supported modes", () => {
+    const appearance = { ...appearanceForPalette("deep-tide"), customAvatarAssetId: "22222222-2222-4222-8222-222222222222" };
+    expect(resolveAgentAppearance(appearance).customAvatarMotion).toBeUndefined();
+    for (const customAvatarMotion of ["still", "reactive"] as const) {
+      expect(resolveAgentAppearance({ ...appearance, customAvatarMotion })).toEqual({ ...appearance, customAvatarMotion });
+      expect(agentAvatarUrl({ ...appearance, customAvatarMotion })).toBe(agentAvatarUrl(appearance));
+    }
+    expect(agentAppearanceSchema.safeParse({ ...appearance, customAvatarMotion: "javascript" }).success).toBe(false);
+  });
   it("uses a separate URL for opaque Slack exports without changing ordinary portraits", () => {
     const appearance = appearanceForPalette("cherry-pop");
     expect(agentAvatarUrl(appearance, 512, 1, "rest", false, "paperclip-dark")).toBe("/api/agent-avatars/cap-v1/cherry-pop/rest.png?size=512&scale=1&background=paperclip-dark");

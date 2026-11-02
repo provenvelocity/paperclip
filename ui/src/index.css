@@ -1877,6 +1877,46 @@ html:has(.paperclip-app-shell[data-mobile="true"] [data-task-chat-shell]) #root 
   50%, 100% { background-color: var(--background); }
 }
 
+@keyframes agent-avatar-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-3%) rotate(2deg); }
+}
+
+@keyframes agent-avatar-think {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+@keyframes agent-avatar-work {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%) scale(1.02); }
+}
+
+.agent-avatar-motion {
+  transform-origin: center 70%;
+  animation: agent-avatar-float 4s ease-in-out infinite;
+}
+
+.agent-avatar-motion-thinking,
+.agent-avatar-motion-confused {
+  animation: agent-avatar-think 2.5s ease-in-out infinite;
+}
+
+.agent-avatar-motion-working,
+.agent-avatar-motion-loading,
+.agent-avatar-motion-success {
+  animation: agent-avatar-work 1.4s ease-in-out infinite;
+}
+
+.agent-avatar-motion-sleepy { animation-duration: 7s; }
+
+.agent-avatar-tracking { transition: transform 180ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar-motion { animation: none; }
+  .agent-avatar-tracking { transition: none; transform: none !important; }
+}
+
 .hb-pulse {
   animation: hb-pulse 1.6s ease-in-out infinite;
 }

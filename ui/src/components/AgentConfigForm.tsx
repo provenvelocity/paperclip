@@ -26,7 +26,7 @@ import type {
   EnvSecretRefBinding,
   Environment,
 } from "@paperclipai/shared";
-import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE, resolveAgentAppearance } from "@paperclipai/shared";
 import type { AdapterModel } from "../api/agents";
 import { agentsApi } from "../api/agents";
 import { ApiError } from "../api/client";
@@ -616,6 +616,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const runtimeConfig = !isCreate ? ((props.agent.runtimeConfig ?? {}) as Record<string, unknown>) : {};
   const heartbeat = !isCreate ? ((runtimeConfig.heartbeat ?? {}) as Record<string, unknown>) : {};
   const debug = !isCreate ? ((runtimeConfig.debug ?? {}) as Record<string, unknown>) : {};
+  const appearance = !isCreate
+    ? resolveAgentAppearance(eff("identity", "appearance", props.agent.appearance), props.agent.id)
+    : undefined;
 
   const adapterType = isCreate
     ? props.values.adapterType
@@ -1663,6 +1666,20 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 placeholder="e.g. VP of Engineering"
               />
             </Field>
+            {appearance?.customAvatarAssetId && (
+              <Field label="Custom avatar motion">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={appearance.customAvatarMotion === "reactive"}
+                    onChange={event => mark("identity", "appearance", {
+                      ...appearance, customAvatarMotion: event.target.checked ? "reactive" : "still",
+                    })} />
+                  Animate uploaded artwork
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Gently moves the whole image with agent activity and follows the mouse on character surfaces. Respects reduced motion; use artwork you have permission to animate.
+                </p>
+              </Field>
+            )}
             <Field label="Reports to" hint={help.reportsTo}>
               <ReportsToPicker
                 agents={companyAgents}

@@ -16,6 +16,8 @@ export const agentAppearanceSchema = z.object({
   paletteId: z.enum(AGENT_PALETTE_IDS),
   /** Company-scoped normalized image, set through the avatar upload service. */
   customAvatarAssetId: z.uuid().optional(),
+  /** Opt-in whole-image motion, not an articulated character rig. */
+  customAvatarMotion: z.enum(["still", "reactive"]).optional(),
 }).strict();
 export type AgentAppearance = z.infer<typeof agentAppearanceSchema>;
 

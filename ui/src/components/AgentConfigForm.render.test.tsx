@@ -1360,6 +1360,7 @@ describe("AgentConfigForm environment selector", () => {
         ownerUserId: "you", isDefault: true, status: "connected",
       }],
     });
+
     mockAdaptersApi.list.mockResolvedValue([{ type: "copilot_local", supportedRunners: ["legacy"], defaultRunner: "legacy" }]);
     mockAgentsApi.testEnvironment.mockResolvedValue({
       adapterType: "copilot_local", status: "pass", testedAt: new Date(0).toISOString(),
@@ -1386,6 +1387,30 @@ describe("AgentConfigForm environment selector", () => {
       expect(result.container.textContent).not.toContain("No Copilot authentication detected.");
       expect(result.onSave).not.toHaveBeenCalled();
     } finally { accountList.mockRestore(); }
+  });
+
+  it("saves custom artwork motion as an appearance-only opt-in and can disable it", async () => {
+    const appearance = {
+      schemaVersion: 1 as const, characterVersion: "cap-v1" as const, paletteId: "deep-tide" as const,
+      customAvatarAssetId: "22222222-2222-4222-8222-222222222222",
+    };
+    const result = await renderForm([], { appearance });
+    roots.push(result.root);
+    const toggle = [...result.container.querySelectorAll("label")].find(label =>
+      label.textContent?.includes("Animate uploaded artwork"))?.querySelector("input");
+    expect(toggle).toBeTruthy();
+    expect(toggle!.checked).toBe(false);
+    await clickElement(toggle);
+    await clickByText(result.container, "Save");
+    expect(result.onSave).toHaveBeenLastCalledWith({
+      appearance: { ...appearance, customAvatarMotion: "reactive" },
+    });
+    await clickElement(toggle);
+    await clickByText(result.container, "Save");
+    expect(result.onSave).toHaveBeenLastCalledWith({
+      appearance: { ...appearance, customAvatarMotion: "still" },
+    });
+    expect(mockAgentsApi.testEnvironment).not.toHaveBeenCalled();
   });
 
   it("refreshes Copilot models after reconnecting the same responsible-user account", async () => {
