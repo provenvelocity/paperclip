@@ -75,14 +75,17 @@ is selected.
 
 ### Exact fine-grained token permissions
 
-For the Copilot token entered in this form:
+The coding template defaults to the user-approved permission set below.
+Repository write access is not necessary for Copilot authentication alone.
 
-| GitHub setting | Required selection |
+| GitHub setting | Coding default |
 | --- | --- |
 | Resource owner | Your personal account, **not an organization** |
-| Repository access | **Public repositories** is sufficient for Copilot authentication; no private repository access required |
+| Repository access | Explicitly choose **Only select repositories**, then the pilot repository; do not choose All repositories |
 | Permissions → Account → Copilot Requests | **Read-only** (`user_copilot_requests=read` in the token-creation link) |
-| All other account/repository permissions | **No access**; GitHub may include automatic **Metadata: Read-only** |
+| Metadata | **Read-only** |
+| Contents, Issues, Pull requests, Workflows | **Read and write** |
+| All other account/repository permissions | **No access** |
 
 GitHub's token-creation screen currently offers **Read-only** for Copilot Requests.
 The [official Copilot token template](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters)
@@ -93,23 +96,26 @@ against your subscription, not Git repository writes. It does not limit local
 file changes or shell commands; the adapter still enables all tools.
 Choose an expiration appropriate for the pilot and keep the token out of source.
 
-[Open the prefilled Copilot token form](https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&expires_in=30)
-to request this permission and a 30-day expiration. Review the form and generate
+[Open the prefilled Copilot token form](https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&metadata=read&contents=write&issues=write&pull_requests=write&workflows=write&expires_in=30)
+to request these permissions and a 30-day expiration. The link does not select
+repositories: choose the repository scope explicitly. Review the form and generate
 the token yourself; opening the link does not create one. GitHub CLI has no
 supported command/API to create a personal fine-grained PAT. `gh auth token`
 prints an existing CLI credential; it is not a token-creation command and should
 not be used for this setup. From a desktop terminal, open the prefilled form with:
 
 ```bash
-python3 -m webbrowser 'https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&expires_in=30'
+python3 -m webbrowser 'https://github.com/settings/personal-access-tokens/new?name=Paperclip%20Copilot&user_copilot_requests=read&metadata=read&contents=write&issues=write&pull_requests=write&workflows=write&expires_in=30'
 ```
 
 Run this on the machine with your browser, not inside the Paperclip container.
 Never paste the generated token into chat.
 
-If you separately configure a Git/GitHub repository credential, select **Only
-select repositories**, then only the pilot repository. These are optional and
-**not** required on the Copilot-only token:
+These defaults authorize code pushes, issue/PR changes and workflow-file changes
+on the selected repositories. Saving the token here does not configure a Git
+credential helper or separately qualify Git push access. For Copilot-only use,
+remove repository write permissions; public repository access is sufficient.
+For narrower repository work, reduce the defaults as follows:
 
 **Add permissions** selects a category; change its access level using the
 **Access** dropdown on the added row. For example, Contents may initially show

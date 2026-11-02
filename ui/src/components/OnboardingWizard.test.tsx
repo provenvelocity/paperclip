@@ -604,6 +604,8 @@ describe("OnboardingWizard restore-gate (stale localStorage across accounts)", (
         expect(document.body.textContent).toContain("Copilot Requests: Read-only");
         expect(document.body.textContent).toContain("user_copilot_requests=read");
         expect(document.body.textContent).not.toContain("copilot_requests=write");
+        expect(document.body.textContent).toContain("Contents, Issues, Pull requests and Workflows: Read and write");
+        expect(document.body.textContent).toContain("Do not select All repositories");
         await act(async () => setControlledValue(field, token));
         await flushReact();
         const connect = [...document.body.querySelectorAll<HTMLButtonElement>("button")]

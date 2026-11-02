@@ -50,8 +50,14 @@ it.each([true, false])("submits a masked direct Copilot token through the existi
   expect(tokenUrl.pathname).toBe("/settings/personal-access-tokens/new");
   expect(tokenUrl.searchParams.get("user_copilot_requests")).toBe("read");
   expect(tokenUrl.searchParams.get("expires_in")).toBe("30");
-  expect(tokenUrl.searchParams.has("contents")).toBe(false);
-  expect(container.textContent).toContain("no private repository access is required");
+  expect([...tokenUrl.searchParams.entries()]).toEqual([
+    ["name", "Paperclip Copilot"], ["user_copilot_requests", "read"], ["metadata", "read"],
+    ["contents", "write"], ["issues", "write"], ["pull_requests", "write"],
+    ["workflows", "write"], ["expires_in", "30"],
+  ]);
+  expect(container.textContent).toContain("Do not select All repositories");
+  expect(container.textContent).toContain("Contents, Issues, Pull requests and Workflows: Read and write");
+  expect(container.textContent).toContain("not a Git credential helper");
   expect(container.textContent).toContain("All other account and repository permissions: No access");
   expect(container.textContent).toContain("Contents: Read-only to clone/read; Read and write to push code");
   expect(container.textContent).toContain("Pull requests: Read-only to view; Read and write to open/update pull requests");
