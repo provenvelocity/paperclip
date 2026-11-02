@@ -41,6 +41,14 @@ it.each([true, false])("submits a masked direct Copilot token through the existi
   expect(container.textContent).toContain("Copilot Requests");
   expect(container.textContent).toContain("short CLI model prompt");
   expect(container.textContent).toContain("encrypted secret storage");
+  expect(container.textContent).toContain("Copilot Requests: Read and write");
+  expect(container.textContent).toContain("copilot_requests=write");
+  expect(container.textContent).toContain("no private repository access is required");
+  expect(container.textContent).toContain("All other account and repository permissions: No access");
+  expect(container.textContent).toContain("Contents: Read-only to clone/read; Read and write to push code");
+  expect(container.textContent).toContain("Pull requests: Read-only to view; Read and write to open/update pull requests");
+  expect(container.textContent).toContain("Issues: Read-only to view; Read and write to create/update issues");
+  expect(container.textContent).toContain("Workflows: Read and write only if changing GitHub Actions workflow files");
   const field = container.querySelector<HTMLInputElement>('input[type="password"]')!;
   expect(field).not.toBeNull();
   flushSync(() => {

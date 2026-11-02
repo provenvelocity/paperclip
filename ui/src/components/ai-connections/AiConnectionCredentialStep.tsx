@@ -12,6 +12,7 @@ import { instanceSettingsApi } from "@/api/instanceSettings";
 import { queryKeys } from "@/lib/queryKeys";
 import { resolveAdapterTestEnvironmentId, resolveLocalDefaultEnvironmentId, resolveManagedSandboxEnvironmentId } from "@/lib/adapter-test-environment";
 import { resolveForcedKubernetesEnvironment } from "@/lib/forced-kubernetes-environment";
+import { CopilotTokenPermissions } from "./CopilotTokenPermissions";
 
 type Props = {
   companyId: string;
@@ -121,6 +122,7 @@ function ApiKeyConnectionStep({ companyId, provider, verificationAdapter, connec
     {!hideName && <label className="block space-y-2 text-sm">Connection name<Input value={name} onChange={(event) => setName(event.target.value)} disabled={Boolean(connectionId)} /></label>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
     {copilot && <p className="text-sm text-muted-foreground">Use a personal fine-grained token with Copilot Requests permission. <a className="underline" href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli" target="_blank" rel="noreferrer">GitHub token instructions</a>. {verificationAdapter === "copilot_local" ? "Verification runs a short CLI model prompt in the Local environment and may consume Copilot usage. The CLI enables all tools; this check is not a sandbox." : "Verification discovers models in the selected environment and sends no model prompt."} Repository access uses a separate connection. The token is stored using Paperclip&apos;s encrypted secret storage, not in agent configuration.</p>}
+    {copilot && <CopilotTokenPermissions />}
     {copilot && !suppliedEnvironmentId && <Select value={environmentId ?? ""} onValueChange={setChosenEnvironment} disabled={preparing || save.isPending}>
       <SelectTrigger aria-label="Copilot execution environment"><SelectValue placeholder="Execution environment" /></SelectTrigger>
       <SelectContent>{(envs.data ?? []).filter(env => env.status === "active" && (verificationAdapter !== "copilot_local" || env.driver === "local")).map(env => <SelectItem key={env.id} value={env.id}>{env.name}</SelectItem>)}</SelectContent>

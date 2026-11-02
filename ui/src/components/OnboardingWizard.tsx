@@ -8,6 +8,7 @@ import { LocalProviderLoginInstructions } from "./AdapterLoginChrome";
 import { useLocalAiLogin } from "./ai-connections/useLocalAiLogin";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { aiProviderForAdapter } from "./ai-connections/AiConnectionField";
+import { CopilotTokenPermissions } from "./ai-connections/CopilotTokenPermissions";
 import { useConnectionModelsState } from "./ai-connections/useConnectionModels";
 import type { AiConnectionBinding } from "@paperclipai/shared";
 import { storeProviderApiKey } from "../lib/provider-credential";
@@ -3129,6 +3130,7 @@ function OnboardingWizardInner({
                           CLI model prompt in the Local environment and may consume Copilot usage.
                           All tools are enabled; this is not a sandbox.
                         </p>}
+                        {adapterType === "copilot_local" && <CopilotTokenPermissions />}
                         {!hasGatewaySelection && <SavedProviderKeySelect {...savedKeys} disabled={loading || adapterEnvLoading} value={selectedApiKey?.id ?? ""} onChange={(id) => {
                           setGatewayConnection(undefined);
                           if (connectionModels) setModel("");

@@ -601,6 +601,8 @@ describe("OnboardingWizard restore-gate (stale localStorage across accounts)", (
         const field = document.body.querySelector<HTMLInputElement>('input[type="password"]')!;
         expect(field.placeholder).toBe("github_pat_...");
         expect(document.body.textContent).toContain("encrypted secret storage");
+        expect(document.body.textContent).toContain("Copilot Requests: Read and write");
+        expect(document.body.textContent).toContain("copilot_requests=write");
         await act(async () => setControlledValue(field, token));
         await flushReact();
         const connect = [...document.body.querySelectorAll<HTMLButtonElement>("button")]

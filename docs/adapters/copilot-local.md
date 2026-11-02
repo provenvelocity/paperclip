@@ -73,6 +73,40 @@ does not require or qualify the separately versioned native Copilot Runner
 installation. Existing CLI OAuth remains supported when no managed binding
 is selected.
 
+### Exact fine-grained token permissions
+
+For the Copilot token entered in this form:
+
+| GitHub setting | Required selection |
+| --- | --- |
+| Resource owner | Your personal account, **not an organization** |
+| Repository access | **Public repositories** is sufficient for Copilot authentication; no private repository access required |
+| Permissions → Account → Copilot Requests | **Read and write** (`copilot_requests=write`) |
+| All other account/repository permissions | **No access**; GitHub may include automatic **Metadata: Read-only** |
+
+GitHub's [account-permission reference](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#account-permissions)
+lists `copilot_requests` with access level `write`. This authorizes Copilot requests
+against your subscription, not Git repository writes. It does not limit local
+file changes or shell commands; the adapter still enables all tools.
+Choose an expiration appropriate for the pilot and keep the token out of source.
+
+If you separately configure a Git/GitHub repository credential, select **Only
+select repositories**, then only the pilot repository. These are optional and
+**not** required on the Copilot-only token:
+
+| Repository permission | Read-only use | Write use |
+| --- | --- | --- |
+| Contents | Clone/read code | **Read and write** to push code |
+| Pull requests | View pull requests | **Read and write** to open/update pull requests |
+| Issues | View issues | **Read and write** to create/update issues or comments, only if needed |
+| Metadata | **Read-only**, automatically required | No write permission |
+| Workflows | Leave **No access** for ordinary code changes | **Read and write** only to change Actions workflow files |
+
+Leave Administration, Secrets, Actions and other permissions at **No access**
+unless a separately scoped task needs them. This form does not provision that
+repository connection. A repository token owned by an organization cannot replace
+the personal-account Copilot token.
+
 ## CLI execution versus GitHub cloud agent
 
 `copilot_local` runs the CLI inside the selected execution environment to work
