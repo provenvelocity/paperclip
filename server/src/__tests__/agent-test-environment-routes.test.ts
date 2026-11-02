@@ -508,6 +508,49 @@ describe("agent test-environment route", () => {
     expect(mockCopilotProbe).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { model: undefined, probeStatus: "pass", checks: [{ code: "copilot_hello_probe_passed", level: "info", message: "Hello verified" }], expected: "pass" },
+    { model: "auto", probeStatus: "pass", checks: [{ code: "copilot_hello_probe_passed", level: "info", message: "Hello verified" }], expected: "pass" },
+    { model: "custom-cli-model", probeStatus: "fail", checks: [{ code: "copilot_hello_probe_auth_required", level: "error", message: "Authentication required" }], expected: "fail" },
+    { model: undefined, probeStatus: "pass", checks: [], expected: "fail" },
+    { model: "auto", probeStatus: "warn", checks: [{ code: "copilot_hello_probe_skipped", level: "warn", message: "Skipped" }], expected: "fail" },
+  ] as const)("tests managed direct Copilot using the CLI, not native metadata ($model / $expected)", async ({ model, probeStatus, checks, expected }) => {
+    const { registerServerAdapter, getServerAdapter, unregisterServerAdapter } = await import("../adapters/index.js");
+    const previous = getServerAdapter("copilot_local");
+    const cliProbe = vi.fn(async () => ({
+      adapterType: "copilot_local", status: probeStatus,
+      checks: checks.map(check => ({ ...check })), testedAt: new Date(0).toISOString(),
+    }));
+    unregisterServerAdapter("copilot_local");
+    registerServerAdapter({ ...externalAdapter, type: "copilot_local", testEnvironment: cliProbe });
+    const cleanup = vi.fn();
+    mockPrepareManagedAiRuntime.mockImplementation(async (_db, input) => ({
+      config: { ...input.config, env: { COPILOT_GITHUB_TOKEN: "synthetic-direct-token" }, managedAiConnection: { method: "api_key" } },
+      attribution: { provider: "github", method: "api_key" }, cleanup,
+    }));
+    try {
+      const app = await createApp();
+      const response = await request(app).post("/api/companies/company-1/adapters/copilot_local/test-environment").send({
+        adapterConfig: { cwd: "/workspace", ...(model ? { model } : {}) },
+        aiConnection: { provider: "github", method: "api_key", mode: "responsible_user" },
+      });
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      expect(response.body.status).toBe(expected);
+      expect(cliProbe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        adapterType: "copilot_local", config: expect.objectContaining({ cwd: "/workspace", ...(model ? { model } : {}) }),
+      }));
+      expect(mockCopilotProbe).not.toHaveBeenCalled();
+      expect(mockValidateAiApiKey).not.toHaveBeenCalled();
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(JSON.stringify(response.body)).not.toContain("synthetic-direct-token");
+      if (checks.some(check => check.code === "copilot_hello_probe_auth_required"))
+        expect(mockMarkAuthenticationFailed).toHaveBeenCalledOnce();
+    } finally {
+      unregisterServerAdapter("copilot_local");
+      if (previous) registerServerAdapter(previous);
+    }
+  });
+
   it("checks the inherited environment's company before resolving credentials", async () => {
     mockInstanceSettingsService.get.mockResolvedValue({ defaultEnvironmentId: "11111111-1111-4111-8111-111111111111" });
     mockEnvironmentService.listBoundCompanyIds.mockResolvedValue(["company-2"]);

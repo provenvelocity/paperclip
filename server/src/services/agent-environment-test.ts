@@ -561,6 +561,16 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
   }
 
   async function probeManagedEnvironment(adapterType: string, context: Parameters<ReturnType<typeof requireServerAdapter>["testEnvironment"]>[0], binding: AiConnectionBinding, managed: Awaited<ReturnType<typeof prepareManagedAiRuntime>>): Promise<AdapterEnvironmentTestResult> {
+    if (binding.provider === "github" && adapterType === "copilot_local") {
+      const result = await requireServerAdapter(adapterType).testEnvironment(context);
+      if (result.status !== "fail" && !result.checks.some(check => check.code === "copilot_hello_probe_passed" && check.level === "info")) {
+        return { ...result, status: "fail", checks: [...result.checks, {
+          code: "ai_connection_validation_incomplete", level: "error",
+          message: "The selected Copilot account has not completed a CLI hello test. Retry before adopting it.",
+        }] };
+      }
+      return result;
+    }
     if (binding.provider === "github") {
       try {
         const token = parseObject(context.config.env).COPILOT_GITHUB_TOKEN;

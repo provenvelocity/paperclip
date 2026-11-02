@@ -73,6 +73,12 @@ does not require or qualify the separately versioned native Copilot Runner
 installation. Existing CLI OAuth remains supported when no managed binding
 is selected.
 
+Managed direct CLI connection tests use this adapter's bounded hello probe,
+including when the model is omitted or `auto`. They do not use native Copilot
+Runner metadata/model discovery or require a native-only explicit model.
+A skipped or missing hello receipt blocks adoption; authentication failures
+remain actionable. Testing may consume Copilot usage.
+
 ### Exact fine-grained token permissions
 
 The coding template defaults to the user-approved permission set below.
