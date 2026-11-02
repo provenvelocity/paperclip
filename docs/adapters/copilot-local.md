@@ -16,7 +16,28 @@ The `copilot_local` adapter runs the GitHub Copilot CLI (`copilot`, npm package 
   - `COPILOT_GITHUB_TOKEN` set in the adapter env or server shell. Use a fine-grained personal access token with the "Copilot Requests" permission. Classic `ghp_` tokens are not supported.
   - The CLI also honours `GH_TOKEN` and `GITHUB_TOKEN`, but this is not recommended in Paperclip because Paperclip reserves those variables for git remote access.
 
-## Configuration Fields
+## Onboarding with a Copilot subscription
+
+Choose **GitHub Copilot** in **Connect a model**, or **GitHub Copilot CLI** when
+creating an agent. This direct CLI adapter is distinct from the experimental
+Copilot-through-Paperclip-Runner path. No OpenAI or Anthropic API key is needed.
+
+Install the CLI in the execution environment, then run `copilot login`
+interactively as the same operating-system user that executes Paperclip agents,
+using the same `COPILOT_HOME`. Complete GitHub authorization yourself; do not
+send tokens to another agent or embed credentials in an image.
+
+In Docker, provide a dedicated persistent Copilot home and only explicitly
+approved workspaces. Do not mount the operator's entire home directory. Configure
+`COPILOT_HOME` consistently for login and agent execution. A successful environment
+probe verifies model access; creating an agent alone does not establish that an
+authenticated task can run.
+
+The onboarding Connect action uses the existing CLI login and tests it before
+hiring. Failed authentication remains blocking and can be retried after login.
+Browser-managed Copilot login is not implemented by this adapter.
+
+## Configuration fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -44,6 +65,12 @@ copilot -p "<prompt>" --output-format json --allow-all-tools --no-ask-user ...
 - `--output-format json` emits one JSON event per line. The final line is always a `result` object carrying the exit code, session id, and usage (`premiumRequests`).
 - `--allow-all-tools` is required for non-interactive mode; without it, write and shell permission requests are auto-denied.
 - `--no-ask-user` removes the `ask_user` tool so the agent never blocks waiting for input.
+
+All tools, including arbitrary shell commands, are allowed. Disabling
+`allowAllPaths` limits CLI path allowances; it does not sandbox arbitrary tools.
+Use a dedicated workspace without sensitive files and human approval for
+consequential actions. This contribution is experimental; offline tests are not
+production or authenticated-run qualification.
 
 ## Session Persistence
 

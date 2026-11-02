@@ -4,7 +4,7 @@ import { resolvePaperclipRunnerModel } from "@paperclipai/adapter-utils";
 import { DEFAULT_GROK_LOCAL_MODEL, grokLocalReasoningEffortsForModel } from "@paperclipai/adapter-grok-local";
 import { DEFAULT_COPILOT_LOCAL_MODEL, COPILOT_REASONING_EFFORTS } from "@paperclipai/adapter-copilot-local";
 import { DEFAULT_KIMI_LOCAL_MODEL, modelSupportsEffort, KIMI_SUPPORTED_EFFORTS } from "@paperclipai/adapter-kimi-local";
-import { aiConnectionBindingSchema, aiRuntimeConnectionBindingSchema, type Agent, type IssueAssigneeAdapterOverrides } from "@paperclipai/shared";
+import { aiConnectionBindingSchema, aiRuntimeConnectionBindingSchema, agentHarnessType, type Agent, type IssueAssigneeAdapterOverrides } from "@paperclipai/shared";
 
 export interface ComposerRunSettings {
   model: string | null;
@@ -24,7 +24,8 @@ const MODEL_ADAPTERS = new Set([
 ]);
 
 export function supportsComposerModel(agent: Agent | undefined): boolean {
-  return Boolean(agent && MODEL_ADAPTERS.has(agent.adapterType));
+  return Boolean(agent && MODEL_ADAPTERS.has(agent.adapterType)
+    && !(agent.adapterType === "paperclip_runner" && agent.adapterConfig.provider === "muse"));
 }
 
 /** Resolve visible defaults; host environment and a local CLI's own config are unknown. */
@@ -46,6 +47,8 @@ export function composerDefaultModel(agent: Agent | undefined): string {
   if (agent.adapterType === "paperclip_runner") {
     const provider = composerCatalogProvider(agent);
     if (provider === "codex" || provider === "opencode") return resolvePaperclipRunnerModel(provider, config.model);
+    if (provider === "acpx" && config.acpxAgent === "grok") return "grok-4.7";
+    if (provider === "acpx" && config.acpxAgent === "kimi") return "";
     if (provider === "acpx" && config.acpxAgent !== "grok") return resolvePaperclipRunnerModel(provider, config.model);
   }
   return "";
@@ -68,13 +71,13 @@ export function composerEfforts(agent: Agent | undefined, model: string, catalog
     : agent.adapterType === "copilot_local" ? DEFAULT_COPILOT_LOCAL_MODEL : "");
   if (!effectiveModel) return [];
   const pool = aiRuntimeConnectionBindingSchema.safeParse(agent.runtimeConfig?.aiConnection).data?.mode === "router";
-  if (pool && agent.adapterType === "paperclip_runner") return isCodexLocalKnownModel(effectiveModel) ? codexLocalReasoningEffortsForModel(effectiveModel) : [];
+  if (pool && agent.adapterType === "paperclip_runner") return isCodexLocalKnownModel(effectiveModel) ? codexLocalReasoningEffortsForModel(effectiveModel) : /^claude-/.test(effectiveModel) ? claudeLocalReasoningEffortsForModel(effectiveModel) : [];
   if (agent.adapterType === "codex_local" || (agent.adapterType === "paperclip_runner" && composerCatalogProvider(agent) === "codex")) {
     return isCodexLocalKnownModel(effectiveModel) ? codexLocalReasoningEffortsForModel(effectiveModel) : [];
   }
   if (!catalogIds.includes(effectiveModel)) return [];
-  if (agent.adapterType === "claude_local") return claudeLocalReasoningEffortsForModel(effectiveModel);
-  if (agent.adapterType === "grok_local") return grokLocalReasoningEffortsForModel(effectiveModel);
+  if (agentHarnessType(agent.adapterType, agent.adapterConfig) === "claude_local") return claudeLocalReasoningEffortsForModel(effectiveModel);
+  if (agentHarnessType(agent.adapterType, agent.adapterConfig) === "grok_local") return grokLocalReasoningEffortsForModel(effectiveModel);
   if (agent.adapterType === "copilot_local") return COPILOT_REASONING_EFFORTS;
   if (agent.adapterType === "pi_local") return ["off", "minimal", "low", "medium", "high", "xhigh"];
   if (agent.adapterType === "kimi_local" && typeof agent.adapterConfig.engine === "string"

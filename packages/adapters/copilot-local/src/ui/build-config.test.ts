@@ -77,5 +77,18 @@ describe("buildCopilotLocalConfig", () => {
       COPILOT_HOME: { type: "plain", value: "/tmp/copilot" },
       COPILOT_GITHUB_TOKEN: { type: "secret_ref", secretId: "secret-1" },
     });
+
+  });
+
+  it("preserves user-scoped secret references without replacing them with legacy values", () => {
+    const binding = { type: "user_secret_ref" as const, key: "copilot_cli", version: "latest" as const, required: true };
+    const config = buildCopilotLocalConfig(makeValues({
+      envBindings: { COPILOT_GITHUB_TOKEN: binding },
+      envVars: "COPILOT_GITHUB_TOKEN=legacy-value\nCOPILOT_HOME=/copilot-home",
+    }));
+    expect(config.env).toEqual({
+      COPILOT_GITHUB_TOKEN: binding,
+      COPILOT_HOME: { type: "plain", value: "/copilot-home" },
+    });
   });
 });
