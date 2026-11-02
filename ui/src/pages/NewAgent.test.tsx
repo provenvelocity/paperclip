@@ -38,6 +38,36 @@ describe("New agent setup", () => {
     expect(container.textContent).toContain("Run copilot login, then retry.");
   });
 
+  it("creates a direct Copilot agent with a managed dashboard token instead of raw credentials", async () => {
+    const token = "github_pat_fixture_direct";
+    await render("copilot_local");
+    const trigger = document.querySelector('[role="combobox"][aria-label="Connection"]')!;
+    await act(async () => trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    await settle();
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find(item => item.textContent?.includes("Connect an account"))!;
+    await act(async () => option.click());
+    await settle();
+    const input = document.querySelector<HTMLInputElement>('[aria-label="personal access token"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, token);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const save = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find(button => button.textContent?.trim() === "Connect")!;
+    await act(async () => save.click());
+    await settle();
+    expect(managedApi.create).toHaveBeenCalledWith("company-1", expect.objectContaining({
+      provider: "github", apiKey: token, verificationAdapter: "copilot_local",
+    }));
+    await click("Finish setup");
+    expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({
+      adapterType: "copilot_local",
+      runtimeConfig: expect.objectContaining({ aiConnection: { provider: "github", method: "api_key", mode: "responsible_user" } }),
+    }));
+    expect(JSON.stringify(api.hire.mock.calls)).not.toContain(token);
+  });
+
   it.each([
     ["claude_local", "Claude", "plugin"], ["codex_local", "OpenAI", "plugin"],
     ["claude_local", "Claude", "sandbox"], ["codex_local", "OpenAI", "sandbox"],
@@ -801,7 +831,7 @@ describe("New agent setup", () => {
     expect(option).toBeDefined();
     await act(async () => option!.click());
     await settle();
-    const input = document.querySelector<HTMLInputElement>('[aria-label="API key"]')!;
+    const input = document.querySelector<HTMLInputElement>('[aria-label="personal access token"]')!;
     expect(input).toBeTruthy();
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "github_pat_fixture_first");

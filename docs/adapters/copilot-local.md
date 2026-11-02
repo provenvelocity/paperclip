@@ -33,9 +33,61 @@ approved workspaces. Do not mount the operator's entire home directory. Configur
 probe verifies model access; creating an agent alone does not establish that an
 authenticated task can run.
 
-The onboarding Connect action uses the existing CLI login and tests it before
-hiring. Failed authentication remains blocking and can be retried after login.
-Browser-managed Copilot login is not implemented by this adapter.
+The onboarding Connect action tests authentication before hiring. Use the existing
+CLI login, or choose **Use a GitHub token instead** for the managed connection
+described below. Failed authentication remains blocking and can be retried.
+Browser-managed Copilot OAuth login is not implemented by this adapter.
+
+## Connect a token from the dashboard
+
+For an existing **GitHub Copilot CLI** agent, open **Configuration** and find
+**Connection** beside its harness/model settings. If it is using the execution
+environment's existing login, choose **Choose a managed connection**, then
+**Connect an account…** in the connection selector.
+
+Enter a personal fine-grained GitHub token with **Copilot Requests** permission.
+This is not an OpenAI API key, and a Copilot subscription does not issue one.
+Classic `ghp_` tokens are not supported. Choose the intended agent audience,
+connect, confirm adoption of the managed binding, and **Save** the agent.
+Run its connection test or **Retry now** after saving. A connected account does
+not prove that a Paperclip-managed task has completed.
+
+This reuses Paperclip's managed AI connection form, company/user authorization,
+encrypted vault and grant references. Only the binding is stored in
+`runtimeConfig.aiConnection`; the token is not saved as plaintext in agent
+configuration or browser draft storage. Run preparation injects the selected
+credential as `COPILOT_GITHUB_TOKEN`, blanks `GH_TOKEN`/`GITHUB_TOKEN` for Copilot,
+and supplies a temporary `COPILOT_HOME` so an unrelated persistent CLI login
+cannot silently replace the chosen account. This leaves the operator's stored
+OAuth directory unchanged. Only CLI `session-state` is retained across runs under
+the instance's `runtime/copilot/<company>/<agent>/<grant>/session-state` directory;
+temporary credential/configuration homes are removed. This preserves session
+resumption without sharing OAuth configuration. Use HTTPS unless the LAN is trusted.
+
+Direct CLI token verification currently requires an allowed **Local**
+environment with `copilot` on its PATH. It runs the adapter's bounded hello
+probe in a temporary empty directory with built-in MCPs disabled, and may consume
+Copilot usage. It still enables arbitrary tools and is not sandboxed. Failed,
+timed-out or skipped authentication does not save a new connection. This path
+does not require or qualify the separately versioned native Copilot Runner
+installation. Existing CLI OAuth remains supported when no managed binding
+is selected.
+
+## CLI execution versus GitHub cloud agent
+
+`copilot_local` runs the CLI inside the selected execution environment to work
+with its filesystem and report run/session events to Paperclip. The model
+service remains remote; this is not local inference.
+
+GitHub also exposes a separate
+[cloud agent tasks API](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api)
+in public preview. It starts repository-scoped asynchronous tasks using
+`POST /agents/repos/{owner}/{repo}/tasks`, supports status polling and can create
+pull requests. It uses user-to-server authentication; GitHub App installation
+tokens are not supported. Such a connection would not need this local CLI or
+mount its workspace, but would need a separate adapter mapping GitHub task
+states, repository permissions, cancellation and PR results to Paperclip.
+Saving a token here does not select cloud execution or implement that adapter.
 
 ## Configuration fields
 

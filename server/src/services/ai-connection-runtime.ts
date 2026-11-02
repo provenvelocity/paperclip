@@ -4,9 +4,10 @@ import type { PluginTaskCredentialWritebackBinding } from "./plugin-task-credent
 import { OPENROUTER_ATTRIBUTION_HEADERS, openRouterClaudeHeaders } from "@paperclipai/shared/openrouter-attribution";
 import { createHash } from "node:crypto";
 import { HttpError, unprocessable } from "../errors.js";
-import { mkdtemp, mkdir, writeFile, readFile, realpath, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, realpath, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { and, eq } from "drizzle-orm";
 import { type Db, companySecrets, connectionGrants } from "@paperclipai/db";
 import {
@@ -221,9 +222,10 @@ export function managedAiSessionFingerprintConfig(
     if (env[key] === value) env[key] = stable[key];
   }
   if (env.GEMINI_HOME === path.join(managedHome, "provider")) env.GEMINI_HOME = path.join("<managed-ai-home>", "provider");
+  if (env.COPILOT_HOME === path.join(managedHome, "provider")) env.COPILOT_HOME = path.join("<managed-ai-home>", "provider");
   const managed = config.managedAiConnection as Record<string, unknown> | undefined;
   if (managed?.sessionIdentity) {
-    for (const key of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENCODE_AUTH_JSON", "OPENCODE_CONFIG_CONTENT"]) {
+    for (const key of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENCODE_AUTH_JSON", "OPENCODE_CONFIG_CONTENT", "COPILOT_GITHUB_TOKEN"]) {
       if (env[key]) env[key] = "<managed-ai-credential>";
     }
   }
@@ -343,12 +345,17 @@ export async function prepareManagedAiRuntime(
     if (harness === "antigravity_runtime") home = await realpath(home);
     const providerHome = path.join(home, "provider");
     await mkdir(providerHome, { mode: 0o700 });
+    if (harness === "copilot_local") {
+      const sessionState = path.join(resolvePaperclipInstanceRoot(), "runtime", "copilot", input.companyId, input.agentId, selection.grant.id, "session-state");
+      await mkdir(sessionState, { recursive: true, mode: 0o700 });
+      await symlink(sessionState, path.join(providerHome, "session-state"), "dir");
+    }
     if (retainedCleanupScope) releaseCredentialHome = bindRetainedAiCredentialHome(providerHome, retainedCleanupScope);
     const env: Record<string, unknown> = {
       ...stripAiAuthBindings(input.config.env),
       ...Object.fromEntries(AI_AUTH_ENV_KEYS.map((key) => [key, ""])),
       ...managedAiHomeEnvironment(home),
-      ...(input.binding.provider === "github" ? { GH_TOKEN: "", GITHUB_TOKEN: "" } : {}),
+      ...(input.binding.provider === "github" ? { GH_TOKEN: "", GITHUB_TOKEN: "", ...(harness === "copilot_local" ? { COPILOT_HOME: providerHome } : {}) } : {}),
     };
     const capability =
       AI_CONNECTION_CAPABILITIES[input.binding.provider].methods[

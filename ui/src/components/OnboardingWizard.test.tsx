@@ -580,6 +580,50 @@ describe("OnboardingWizard restore-gate (stale localStorage across accounts)", (
         expect(mockSecretsApi.createMyUserSecret).not.toHaveBeenCalled();
       } finally { await act(async () => root.unmount()); }
     });
+
+    it.each([true, false])("connects a dashboard Copilot token without embedding it in the agent (%s)", async succeeds => {
+      const token = "github_pat_fixture_onboarding";
+      mockAdapterBuild.buildAdapterConfig.mockImplementation(values => ({
+        command: values?.command || "copilot", model: values?.model || "auto",
+      }));
+      if (succeeds) managedApi.create.mockResolvedValueOnce({ connectionId: "connection", grantId: "grant" });
+      else managedApi.create.mockRejectedValueOnce(new Error("Copilot token verification failed."));
+      const root = await openProviderChoices({}, true);
+      try {
+        const source = [...document.body.querySelectorAll<HTMLButtonElement>('button[aria-checked]')]
+          .find(button => button.textContent?.includes("GitHub Copilot"))!;
+        await act(async () => source.click());
+        await flushReact();
+        const useToken = document.body.querySelector<HTMLButtonElement>('button[aria-label="Use a GitHub token instead"]')!;
+        expect(useToken).not.toBeNull();
+        await act(async () => useToken.click());
+        await flushReact();
+        const field = document.body.querySelector<HTMLInputElement>('input[type="password"]')!;
+        expect(field.placeholder).toBe("github_pat_...");
+        expect(document.body.textContent).toContain("encrypted secret storage");
+        await act(async () => setControlledValue(field, token));
+        await flushReact();
+        const connect = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+          .find(button => button.textContent?.trim() === "Connect")!;
+        await vi.waitFor(() => expect(connect.disabled).toBe(false));
+        await act(async () => connect.click());
+        await flushReact();
+        expect(managedApi.create).toHaveBeenCalledExactlyOnceWith("c1", expect.objectContaining({
+          provider: "github", method: "api_key", apiKey: token, verificationAdapter: "copilot_local",
+        }));
+        expect(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)).not.toContain(token);
+        if (succeeds) {
+          expect(mockAgentsApi.hire).toHaveBeenCalledWith("c1", expect.objectContaining({
+            adapterType: "copilot_local",
+            runtimeConfig: expect.objectContaining({ aiConnection: { provider: "github", method: "api_key", mode: "responsible_user" } }),
+          }));
+          expect(JSON.stringify(mockAgentsApi.hire.mock.calls)).not.toContain(token);
+        } else {
+          expect(mockAgentsApi.hire).not.toHaveBeenCalled();
+          expect(document.body.textContent).toContain("Copilot token verification failed.");
+        }
+      } finally { await act(async () => root.unmount()); }
+    });
   });
 
   describe("step 1 leads straight to the agent — there is no mission step 2", () => {

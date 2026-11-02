@@ -256,6 +256,7 @@ const MODEL_SOURCE_INLINE_MARKS: Record<string, ComponentType<{ className?: stri
 const API_KEY_ENV_KEYS: Record<string, string> = {
   claude_local: ANTHROPIC_API_KEY_ENV_KEY,
   codex_local: "OPENAI_API_KEY",
+  copilot_local: "COPILOT_GITHUB_TOKEN",
 };
 
 function apiKeyEnvKeyFor(adapterType: string): string {
@@ -1997,7 +1998,8 @@ function OnboardingWizardInner({
     if (apiKeySecretRef.current?.key === key && apiKeySecretRef.current.companyId === companyId && apiKeySecretRef.current.envKey === envKey) return true;
     try {
       if (managedProvider) {
-        await aiConnectionsApi.create(companyId, { provider: managedProvider, method: "api_key", name: `My ${CONNECT_SOURCE_NAMES[adapterType] ?? managedProvider} API`, ownership: "personal", apiKey: key, agentIds: [], allAgents: true });
+        await aiConnectionsApi.create(companyId, { provider: managedProvider, method: "api_key", name: `My ${CONNECT_SOURCE_NAMES[adapterType] ?? managedProvider} API`, ownership: "personal", apiKey: key, agentIds: [], allAgents: true,
+          ...(adapterType === "copilot_local" ? { verificationAdapter: "copilot_local", environmentId: resolvedLoginEnvironmentId } : {}) });
         apiKeySecretRef.current = { key, companyId, envKey, aiConnection: { provider: managedProvider, method: "api_key", mode: "responsible_user" } };
         return true;
       }
@@ -3049,7 +3051,8 @@ function OnboardingWizardInner({
                       transition={{ opacity: SOURCE_LINK_EXIT, height: MAKE_ROOM }}
                     >
                       <div className="-ml-3 mt-1">
-                        {adapterType !== "copilot_local" && <CredentialModeLink mode={credentialMode} onChange={setCredentialMode} />}
+                        <CredentialModeLink mode={credentialMode} onChange={setCredentialMode}
+                          apiLabel={adapterType === "copilot_local" ? "Use a GitHub token instead" : undefined} />
                         {savedKeys.options.length > 0 && <p className="px-3 text-sm text-muted-foreground">{savedKeys.options.length} saved API {savedKeys.options.length === 1 ? "key available" : "keys available"}.</p>}
                         {credentialMode === "subscription" && authSignalStatus === "present" && <p className="px-3 text-sm text-muted-foreground">An existing provider connection is available.</p>}
                       </div>
@@ -3097,7 +3100,7 @@ function OnboardingWizardInner({
                         <Loader2 className="size-4 animate-spin" />
                         {connectProgress}
                       </p>
-                    ) : adapterType === "copilot_local" ? (
+                    ) : adapterType === "copilot_local" && credentialMode !== "api" ? (
                       <OnboardingLoginCard instruction="Use your GitHub Copilot subscription">
                         <p className="text-sm text-muted-foreground">
                           Run <code>copilot login</code> on the selected execution environment as
@@ -3116,10 +3119,16 @@ function OnboardingWizardInner({
                       </OnboardingLoginCard>
                     ) : credentialMode === "api" ? (
                       <OnboardingLoginCard
-                        instruction={hasGatewaySelection || connectionModels ? "Choose a model for your saved connection" : savedKeys.options.length ? "Choose a saved API key or enter a new one" : `Provide your ${
+                        instruction={adapterType === "copilot_local" ? "Provide your GitHub Copilot personal access token" : hasGatewaySelection || connectionModels ? "Choose a model for your saved connection" : savedKeys.options.length ? "Choose a saved API key or enter a new one" : `Provide your ${
                           CONNECT_SOURCE_NAMES[adapterType] ?? adapterType
                         } API key to connect`}
                       >
+                        {adapterType === "copilot_local" && <p className="text-sm text-muted-foreground">
+                          Use a fine-grained GitHub token with Copilot Requests permission.
+                          Paperclip stores it in encrypted secret storage. Verification runs a short
+                          CLI model prompt in the Local environment and may consume Copilot usage.
+                          All tools are enabled; this is not a sandbox.
+                        </p>}
                         {!hasGatewaySelection && <SavedProviderKeySelect {...savedKeys} disabled={loading || adapterEnvLoading} value={selectedApiKey?.id ?? ""} onChange={(id) => {
                           setGatewayConnection(undefined);
                           if (connectionModels) setModel("");
@@ -3127,8 +3136,8 @@ function OnboardingWizardInner({
                           setApiKey("");
                         }} />}
                         {!selectedApiKey && !hasGatewaySelection && !connectionModels && <OnboardingCardField
-                          label="API key"
-                          placeholder="Enter API key here"
+                          label={adapterType === "copilot_local" ? "Personal access token" : "API key"}
+                          placeholder={adapterType === "copilot_local" ? "github_pat_..." : "Enter API key here"}
                           masked
                           // The card is the answer to the tile just pressed, so
                           // the field is unambiguously the next thing. Carried

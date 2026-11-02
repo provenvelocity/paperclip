@@ -456,15 +456,17 @@ export function ProviderSubscriptionCard({
 
 export function ProviderApiKeyCard({
   providerName,
+  credentialLabel = "API key",
   ...field
 }: Omit<Parameters<typeof OnboardingCardField>[0], "masked" | "label"> & {
   providerName: string;
+  credentialLabel?: string;
 }) {
   return (
     <OnboardingLoginCard
-      instruction={`Provide your ${providerName} API key to connect`}
+      instruction={`Provide your ${providerName} ${credentialLabel} to connect`}
     >
-      <OnboardingCardField {...field} label="API key" masked />
+      <OnboardingCardField {...field} label={credentialLabel} masked />
     </OnboardingLoginCard>
   );
 }

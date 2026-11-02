@@ -16,6 +16,20 @@ pending Antigravity execution profile. See [AI connections](../../doc/connection
 
 Feature ID: `connection-setup`.
 
+Direct GitHub Copilot CLI agents can adopt a managed token in Configuration →
+Connection using the existing masked credential form and encrypted connection
+storage. Local verification uses a bounded CLI model prompt, discloses usage and
+all-tools permissions, and fails closed before saving. Existing CLI OAuth and
+native Copilot Runner setup remain separate. Fixture coverage:
+[connection selector](../../ui/src/components/ai-connections/AiConnectionField.test.tsx),
+[credential form](../../ui/src/components/ai-connections/AiConnectionCredentialStep.test.tsx)
+and [verification](../../server/src/__tests__/copilot-local-connection-probe.test.ts).
+Real credential entry and a completed agent task still require operator proof.
+Onboarding also offers **Use a GitHub token instead**, and new-agent Configure
+uses the same managed selector. These paths preserve CLI OAuth as an alternative:
+[onboarding regressions](../../ui/src/components/OnboardingWizard.test.tsx) and
+[new-agent regressions](../../ui/src/pages/NewAgent.test.tsx).
+
 Agent access: [companion](../agent-access-map/connection-setup.md).
 
 Prompt Injection Prevention reuses shared OpenRouter API-key setup directly from

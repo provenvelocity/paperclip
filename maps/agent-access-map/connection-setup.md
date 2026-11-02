@@ -11,6 +11,19 @@ Product map: [connection-setup](../feature-map/connection-setup.md).
 
 Feature ID: `connection-setup`.
 
+Direct `copilot_local` token setup reuses company-scoped AI connection creation,
+owner/audience checks, encrypted secret references and runtime grant resolution.
+`verificationAdapter: copilot_local` is allowed only for GitHub API-token
+connections and verifies in an active, company-compatible Local environment;
+managed-only and Kubernetes policies are not bypassed. The token is injected
+only into the selected managed runtime, with a disposable Copilot home and
+unrelated GitHub token variables blanked. UI/API fixtures do not establish live
+GitHub authentication or successful task execution. See
+[managed account regressions](../../server/src/__tests__/ai-connections.test.ts).
+Direct CLI session history persists separately by company, agent and grant;
+operator OAuth configuration is not copied. Onboarding and new-agent setup carry
+managed binding references, never the entered token, into the agent payload.
+
 Delegated native entries inherit the [native admission and work-mode limits](README.md#native-rest-transport).
 
 Review date: 2026-10-26. Source base: `a1f77821b9cd5c9c846fdf7a0fa5cc620ad2b6bb`; implementation: [#17737](https://github.com/paperclipai/paperclip/pull/17737).

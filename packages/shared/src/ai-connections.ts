@@ -82,7 +82,7 @@ export const AI_CONNECTION_CAPABILITIES: Record<
 > = {
   github: {
     name: "GitHub Copilot",
-    methods: { api_key: { adapters: ["copilot_runtime"], envKey: "COPILOT_GITHUB_TOKEN" } },
+    methods: { api_key: { adapters: ["copilot_runtime", "copilot_local"], envKey: "COPILOT_GITHUB_TOKEN" } },
   },
   google: { name: "Google", methods: {
     api_key: { adapters: ["gemini_local", "pi_local", "antigravity_runtime"], envKey: "GEMINI_API_KEY" },
@@ -139,7 +139,7 @@ export function isAiConnectionCompatible(
     && ["openrouter", "openai", "anthropic", "google"].includes(requirement.provider)
     && typeof model === "string" && model.startsWith(`${requirement.provider}/`);
   if ("mode" in requirement && requirement.mode !== "responsible_user" && requirement.method === "api_key")
-    return ["claude_local", "codex_local", "opencode_local", "hermes_local", "gemini_local", "grok_local", "copilot_runtime"].includes(adapterType);
+    return ["claude_local", "codex_local", "opencode_local", "hermes_local", "gemini_local", "grok_local", "copilot_runtime", "copilot_local"].includes(adapterType);
   const methods = AI_CONNECTION_CAPABILITIES[requirement.provider].methods;
   const candidates = "mode" in requirement && requirement.mode === "responsible_user"
     ? Object.values(methods)
@@ -204,6 +204,7 @@ export const createAiConnectionSchema = z
     routing: aiProviderRoutingSchema.optional(),
     apiKey: z.string().trim().min(1).max(32768).optional(),
     environmentId: z.string().uuid().nullable().optional(),
+    verificationAdapter: z.literal("copilot_local").optional(),
     loginSessionId: z.string().max(128).optional(),
     connectionId: z.string().uuid().optional(),
     agentIds: z.array(z.string().uuid()).max(1000).default([]),
@@ -211,6 +212,8 @@ export const createAiConnectionSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (v.verificationAdapter && (v.provider !== "github" || v.method !== "api_key" || v.routing))
+      ctx.addIssue({ code: "custom", message: "Direct Copilot verification requires a GitHub token connection." });
     if (!AI_CONNECTION_CAPABILITIES[v.provider].methods[v.method])
       ctx.addIssue({ code: "custom", message: "Unsupported sign-in method" });
     if (v.routing && (v.method !== "api_key" || (v.routing.kind === "openrouter" && v.provider !== "openrouter") || (v.routing.kind === "bedrock" && v.provider !== "anthropic")))

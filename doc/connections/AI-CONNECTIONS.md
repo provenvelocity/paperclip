@@ -28,6 +28,7 @@ The shared `AI_CONNECTION_CAPABILITIES` contract defines these combinations:
 | OpenRouter (legacy, no routing metadata) | API key | OpenCode or Pi, with an `openrouter/` model |
 | Google | Gemini API key; separate local Antigravity sign-in | Gemini CLI / Pi (API key); Antigravity candidate (pending execution acceptance) |
 | Grok / xAI | Grok subscription or xAI API key | Grok |
+| GitHub Copilot | Fine-grained personal token with Copilot Requests permission | Direct Copilot CLI or native Copilot Runner |
 
 Native runner supports the corresponding existing Codex, OpenCode, and Claude
 ACP profiles. Connections creation and reconnect mount `AgentProviderConnection`,
@@ -38,6 +39,19 @@ browser sign-in presentation with a local login runner and require no sandbox.
 Environment selection does not change agent execution settings.
 API keys are validated against fixed provider endpoints; redirects
 and caller-supplied validation URLs are rejected.
+
+Direct Copilot CLI agents reuse the managed connection selector and encrypted
+token storage. Their connection form selects `verificationAdapter: copilot_local`
+for a bounded Local CLI hello probe rather than native Runner model discovery.
+The form discloses the model request and all-tools permission; failed verification
+does not save the connection. Native Copilot setup keeps its existing metadata
+probe and execution qualification. Direct token runs use a disposable Copilot
+home, not the operator's persistent OAuth home. See the
+[direct adapter guide](../../docs/adapters/copilot-local.md#connect-a-token-from-the-dashboard).
+Onboarding exposes **Use a GitHub token instead** beside the CLI subscription
+instructions; new-agent Configure and existing-agent Configuration use the same
+managed account form. Only session history is retained across direct token runs,
+scoped by company, agent and grant; credential/configuration homes remain disposable.
 
 `runtimeConfig.aiConnection` contains `provider`, `mode`, and `method`. For responsible-user selections, `method` is a legacy wire hint retained for rolling upgrades; the resolver uses the selected account’s actual method:
 

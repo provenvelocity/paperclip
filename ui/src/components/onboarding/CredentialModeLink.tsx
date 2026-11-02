@@ -31,22 +31,25 @@ const OTHER_MODE: Record<CredentialMode, CredentialMode> = {
 export function CredentialModeLink({
   mode,
   onChange,
+  apiLabel,
 }: {
   mode: CredentialMode;
   onChange: (next: CredentialMode) => void;
+  apiLabel?: string;
 }) {
-  return <ModeLink destination={OTHER_MODE[mode]} onClick={() => onChange(OTHER_MODE[mode])} modes={NATIVE_MODES} />;
+  return <ModeLink destination={OTHER_MODE[mode]} onClick={() => onChange(OTHER_MODE[mode])} modes={NATIVE_MODES} labels={{ ...LINK_LABEL, api: apiLabel ?? LINK_LABEL.api }} />;
 }
 
-function ModeLink({ destination, onClick, modes }: {
+function ModeLink({ destination, onClick, modes, labels }: {
   destination: CredentialMode;
   onClick: () => void;
   modes: CredentialMode[];
+  labels: Record<CredentialMode, string>;
 }) {
   return (
     <button
       type="button"
-      aria-label={LINK_LABEL[destination]}
+      aria-label={labels[destination]}
       onClick={onClick}
       className={cn(
         // A grid rather than a flow of text, so both labels can occupy one cell
@@ -69,7 +72,7 @@ function ModeLink({ destination, onClick, modes }: {
           aria-hidden
           className="invisible col-start-1 row-start-1 whitespace-nowrap"
         >
-          {LINK_LABEL[sizerMode]}
+          {labels[sizerMode]}
         </span>
       ))}
 
@@ -91,7 +94,7 @@ function ModeLink({ destination, onClick, modes }: {
           animate={{ opacity: 1, transition: LINK_LABEL_FADE_IN }}
           exit={{ opacity: 0, transition: LINK_LABEL_FADE_OUT }}
         >
-          {LINK_LABEL[destination]}
+          {labels[destination]}
         </motion.span>
       </AnimatePresence>
     </button>

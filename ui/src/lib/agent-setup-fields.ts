@@ -55,7 +55,7 @@ export const SETUP_LOGIN_HINTS: Record<string, string> = {
   kimi_local:
     "Use a Kimi API key and model settings below, or run kimi login on the selected environment's host.",
   copilot_local:
-    "Run copilot login on the selected environment's host as the Paperclip user, using the same COPILOT_HOME. Your Copilot subscription does not require an OpenAI or Anthropic API key. COPILOT_GITHUB_TOKEN is optional.",
+    "Choose a managed GitHub Copilot token in Connection, or run copilot login as the Paperclip user using the same COPILOT_HOME. A personal fine-grained token needs Copilot Requests permission; no OpenAI or Anthropic API key is required.",
   grok_local:
     "Grok Build uses its CLI sign-in. Run grok login on the selected environment's host, then test the connection here.",
   hermes_local:

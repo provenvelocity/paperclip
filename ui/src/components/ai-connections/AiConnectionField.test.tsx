@@ -81,6 +81,28 @@ it("reconnects the unavailable personal default in place", async () => {
   expect(onChange).toHaveBeenCalledWith({ provider: "anthropic", method: "subscription", mode: "responsible_user" });
 });
 
+it("offers the existing managed GitHub token flow for a legacy direct Copilot agent", async () => {
+  mocks.list.mockResolvedValue({ currentUserId: "owner", connections: [], canManageConnections: true });
+  expect(aiProviderForAdapter("copilot_local")).toBe("github");
+  flushSync(() => root.render(<QueryClientProvider client={client}>
+    <AiConnectionField companyId="company" agentId="agent" agentName="Copilot" adapterType="copilot_local"
+      environmentId="local" legacy onChange={onChange} />
+  </QueryClientProvider>));
+  await settle();
+  await click("Choose a managed connection");
+  await click("Connect another account");
+  expect(credentialProps).toMatchObject({
+    provider: "github", initialMethod: "api_key", verificationAdapter: "copilot_local",
+    environmentId: "local", agentIds: ["agent"],
+  });
+  credentialProps!.onComplete({ connectionId: "copilot-connection", grantId: "copilot-grant", method: "api_key" });
+  await settle();
+  expect(mocks.setDefault).toHaveBeenCalledWith("company", "copilot-grant");
+  expect(onChange).not.toHaveBeenCalled();
+  await click("Use this binding when saved");
+  expect(onChange).toHaveBeenCalledExactlyOnceWith({ provider: "github", method: "api_key", mode: "responsible_user" });
+});
+
 it("identifies duplicate-named accounts before adopting the exact personal grant", async () => {
   const personal = account({ id: "00000000-0000-4000-8000-000000000001", grantId: "00000000-0000-4000-8000-000000000002", provider: "openai", method: "api_key", name: "OpenAI", ownerName: "Avery", status: "connected", isDefault: false });
   const shared = account({ id: "00000000-0000-4000-8000-000000000003", grantId: "00000000-0000-4000-8000-000000000004", provider: "openai", method: "subscription", name: "OpenAI", accountLabel: "engineering@example.test", ownership: "shared", ownerUserId: undefined, status: "connected", isDefault: false });

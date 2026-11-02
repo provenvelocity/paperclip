@@ -16,6 +16,7 @@ import { resolveForcedKubernetesEnvironment } from "@/lib/forced-kubernetes-envi
 type Props = {
   companyId: string;
   provider: AiProvider;
+  verificationAdapter?: "copilot_local";
   initialMethod?: AiAuthMethod;
   fixedMethod?: boolean;
   connectionId?: string;
@@ -100,7 +101,7 @@ function SubscriptionConnectionStep({ companyId, provider, initialMethod, fixedM
   </div>;
 }
 
-function ApiKeyConnectionStep({ companyId, provider, connectionId, name: initialName, hideName, nameForMethod, ownership, agentIds, allAgents, environmentId: suppliedEnvironmentId, defaults, disabled, onComplete, onCancel }: Props) {
+function ApiKeyConnectionStep({ companyId, provider, verificationAdapter, connectionId, name: initialName, hideName, nameForMethod, ownership, agentIds, allAgents, environmentId: suppliedEnvironmentId, defaults, disabled, onComplete, onCancel }: Props) {
   const [name, setName] = useState(initialName);
   const [apiKey, setApiKey] = useState("");
   const client = useQueryClient();
@@ -112,21 +113,21 @@ function ApiKeyConnectionStep({ companyId, provider, connectionId, name: initial
   const environmentError = copilot ? envs.error?.message ?? settings.error?.message : undefined;
   const preparing = copilot && (envs.isPending || settings.isPending);
   const save = useMutation({
-    mutationFn: () => aiConnectionsApi.create(companyId, { provider, method: "api_key", name: connectionId ? name : nameForMethod?.("api_key") ?? name, ownership, agentIds, allAgents, connectionId, apiKey, ...(copilot ? { environmentId } : {}) }),
+    mutationFn: () => aiConnectionsApi.create(companyId, { provider, method: "api_key", name: connectionId ? name : nameForMethod?.("api_key") ?? name, ownership, agentIds, allAgents, connectionId, apiKey, ...(copilot ? { environmentId, verificationAdapter } : {}) }),
     onSuccess: (result) => { void client.invalidateQueries({ queryKey: ["ai-connections", companyId] }); void client.invalidateQueries({ queryKey: ["tools"] }); onComplete({ ...result, method: "api_key" }); },
     onSettled: () => setApiKey(""),
   });
   return <div className="mx-auto w-full min-w-0 max-w-xl space-y-4">
     {!hideName && <label className="block space-y-2 text-sm">Connection name<Input value={name} onChange={(event) => setName(event.target.value)} disabled={Boolean(connectionId)} /></label>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
-    {copilot && <p className="text-sm text-muted-foreground">Use a personal fine-grained token with Copilot Requests permission. <a className="underline" href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli" target="_blank" rel="noreferrer">GitHub token instructions</a>. Verification discovers models in the selected environment and sends no model prompt. Repository access uses a separate connection.</p>}
+    {copilot && <p className="text-sm text-muted-foreground">Use a personal fine-grained token with Copilot Requests permission. <a className="underline" href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli" target="_blank" rel="noreferrer">GitHub token instructions</a>. {verificationAdapter === "copilot_local" ? "Verification runs a short CLI model prompt in the Local environment and may consume Copilot usage. The CLI enables all tools; this check is not a sandbox." : "Verification discovers models in the selected environment and sends no model prompt."} Repository access uses a separate connection. The token is stored using Paperclip&apos;s encrypted secret storage, not in agent configuration.</p>}
     {copilot && !suppliedEnvironmentId && <Select value={environmentId ?? ""} onValueChange={setChosenEnvironment} disabled={preparing || save.isPending}>
       <SelectTrigger aria-label="Copilot execution environment"><SelectValue placeholder="Execution environment" /></SelectTrigger>
-      <SelectContent>{(envs.data ?? []).filter(env => env.status === "active").map(env => <SelectItem key={env.id} value={env.id}>{env.name}</SelectItem>)}</SelectContent>
+      <SelectContent>{(envs.data ?? []).filter(env => env.status === "active" && (verificationAdapter !== "copilot_local" || env.driver === "local")).map(env => <SelectItem key={env.id} value={env.id}>{env.name}</SelectItem>)}</SelectContent>
     </Select>}
     {environmentError && <p role="alert" className="text-sm text-destructive">{environmentError}</p>}
     {defaults}
-    <ProviderApiKeyCard providerName={copilot ? "GitHub Copilot" : provider === "google" ? "Google" : "OpenRouter"} value={apiKey} onChange={setApiKey} onSubmit={() => { if (!preparing && !environmentError && name.trim() && apiKey.trim()) save.mutate(); }} disabled={disabled || save.isPending || preparing || Boolean(environmentError)} placeholder={copilot ? "github_pat_..." : "Enter API key here"} autoFocus />
+    <ProviderApiKeyCard providerName={copilot ? "GitHub Copilot" : provider === "google" ? "Google" : "OpenRouter"} credentialLabel={copilot ? "personal access token" : undefined} value={apiKey} onChange={setApiKey} onSubmit={() => { if (!preparing && !environmentError && name.trim() && apiKey.trim()) save.mutate(); }} disabled={disabled || save.isPending || preparing || Boolean(environmentError)} placeholder={copilot ? "github_pat_..." : "Enter API key here"} autoFocus />
     <div className="flex justify-between gap-2"><Button variant="ghost" onClick={onCancel}>Cancel</Button><Button disabled={disabled || !name.trim() || !apiKey.trim() || save.isPending || preparing || Boolean(environmentError)} onClick={() => save.mutate()}>{save.isPending ? "Connecting…" : "Connect"}</Button></div>
   </div>;
 }

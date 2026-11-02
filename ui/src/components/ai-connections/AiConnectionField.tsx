@@ -37,6 +37,7 @@ export function aiProviderForAdapter(
       pi_local: "openrouter",
       grok_local: "xai",
       copilot_runtime: "github",
+      copilot_local: "github",
       antigravity_runtime: "google",
       gemini_local: "google",
       hermes_local: "openrouter",
@@ -241,6 +242,7 @@ export function AiConnectionField({
           <AiConnectionCredentialStep
             companyId={companyId}
             provider={provider}
+            verificationAdapter={adapterType === "copilot_local" ? "copilot_local" : undefined}
             initialMethod={reconnecting?.method ?? method}
             fixedMethod={Boolean(reconnecting)}
             connectionId={reconnecting?.id}
