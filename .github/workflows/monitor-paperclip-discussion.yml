@@ -1,0 +1,106 @@
+name: Monitor upstream Paperclip discussion
+
+on:
+  schedule:
+    - cron: "20 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitor-paperclip-discussion-18836
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: github.repository == 'provenvelocity/paperclip'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Notify tracking issue about new discussion comments and replies
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const target = {owner: 'provenvelocity', repo: 'paperclip', issue_number: 1};
+            const existing = await github.paginate(github.rest.issues.listComments, {
+              ...target, per_page: 100
+            });
+            const seen = new Set();
+            for (const comment of existing) {
+              if (!['github-actions[bot]', 'provenvelocity'].includes(comment.user?.login)) continue;
+              for (const match of (comment.body ?? '').matchAll(/<!-- discussion-18836:([A-Za-z0-9_=-]+) -->/g)) {
+                seen.add(match[1]);
+              }
+            }
+            const source = [];
+            let cursor = null;
+            do {
+              const result = await github.graphql(`
+                query($cursor: String) {
+                  repository(owner: "paperclipai", name: "paperclip") {
+                    discussion(number: 18836) {
+                      comments(first: 100, after: $cursor) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes { id url createdAt author { login } }
+                      }
+                    }
+                  }
+                }`, {cursor});
+              const discussion = result.repository?.discussion;
+              if (!discussion) throw new Error('Upstream discussion 18836 is unavailable');
+              source.push(...discussion.comments.nodes);
+              cursor = discussion.comments.pageInfo.hasNextPage
+                ? discussion.comments.pageInfo.endCursor : null;
+            } while (cursor);
+            const all = [...source];
+            for (const parent of source) {
+              let replyCursor = null;
+              do {
+                const result = await github.graphql(`
+                  query($id: ID!, $cursor: String) {
+                    node(id: $id) {
+                      ... on DiscussionComment {
+                        replies(first: 100, after: $cursor) {
+                          pageInfo { hasNextPage endCursor }
+                          nodes { id url createdAt author { login } }
+                        }
+                      }
+                    }
+                  }`, {id: parent.id, cursor: replyCursor});
+                const replies = result.node?.replies;
+                if (!replies) throw new Error(`Replies unavailable for ${parent.id}`);
+                all.push(...replies.nodes);
+                replyCursor = replies.pageInfo.hasNextPage ? replies.pageInfo.endCursor : null;
+              } while (replyCursor);
+            }
+            all.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+            let posted = 0;
+            for (const comment of all) {
+              if (seen.has(comment.id)) continue;
+              const author = comment.author?.login ?? 'a deleted account';
+              await github.rest.issues.createComment({
+                ...target,
+                body: [
+                  `<!-- discussion-18836:${comment.id} -->`,
+                  `@provenvelocity New comment or reply from **${author}** on the upstream Paperclip discussion:`,
+                  '',
+                  comment.url,
+                  '',
+                  `Posted: ${comment.createdAt}`,
+                  '',
+                  'Open the source link to read and respond. Comment text is not copied or executed.'
+                ].join('\n')
+              });
+              seen.add(comment.id);
+              posted++;
+            }
+            core.info(`Checked ${all.length} comments/replies; posted ${posted} new notifications.`);
+            await core.summary
+              .addHeading('Paperclip discussion monitor')
+              .addRaw(`Checked ${all.length} comments/replies; posted ${posted} notifications.\n\n`)
+              .addLink('Upstream discussion', 'https://github.com/paperclipai/paperclip/discussions/18836')
+              .addRaw('\n\n')
+              .addLink('Tracking issue', 'https://github.com/provenvelocity/paperclip/issues/1')
+              .write();
